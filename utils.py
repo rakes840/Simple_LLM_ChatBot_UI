@@ -4,11 +4,9 @@ import time
 from datetime import datetime
 from functools import lru_cache
 from typing import List, Dict, Any, Optional
-
 import streamlit as st
 from sqlalchemy.exc import SQLAlchemyError
-
-from database import ChatHistory, get_db_session
+from db import ChatHistory, get_db
 from logger import get_logger
 
 # Get logger
@@ -19,7 +17,7 @@ def get_user_chat_history(user_id: int, max_records: int = 100) -> List[ChatHist
     """Get chat history for a specific user with caching for performance."""
     try:
         start_time = time.time()
-        with get_db_session() as db:
+        with get_db() as db:
             history = db.query(ChatHistory).filter(
                 ChatHistory.user_id == user_id
             ).order_by(ChatHistory.timestamp.desc()).limit(max_records).all()
@@ -127,3 +125,9 @@ async def fetch_chat_history_async(user_id: int, max_records: int = 100) -> List
         None, 
         lambda: get_user_chat_history(user_id, max_records)
     )
+
+# Added setup_logging function to match app.py references
+def setup_logging(level="INFO", log_format=None, log_file=None):
+    """Set up application logging - wrapper for logger.setup_logging"""
+    from logger import setup_logging as logger_setup
+    return logger_setup(level, log_format, log_file)
