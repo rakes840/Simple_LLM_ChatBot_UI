@@ -11,5 +11,11 @@ LAYOUT = "wide"
 
 # Authentication Configuration
 SESSION_EXPIRY_DAYS = 30
+
 # Database Configuration
 DB_PATH = "db/chatbot.db"
+
+# Logging Configuration
+LOG_LEVEL = "INFO"
+LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOG_FILE = "logs/app.log"
