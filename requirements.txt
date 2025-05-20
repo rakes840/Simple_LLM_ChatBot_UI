@@ -1,0 +1,13 @@
+streamlit==1.37.1
+langchain
+sqlalchemy
+huggingface_hub
+transformers
+python-dotenv
+protobuf
+sentence-transformers
+accelerate
+langchain_huggingface 
+python-dotenv
+ipykernel
+langchain-community
