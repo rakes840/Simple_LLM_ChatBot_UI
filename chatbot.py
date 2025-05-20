@@ -31,16 +31,15 @@ class Chatbot:
     def __init__(self, model_name=HF_MODEL_NAME):
         """Initialize the chatbot with a specified model."""
         try:
-            self.llm = HuggingFaceHub(
-                repo_id=model_name,
-                huggingfacehub_api_token=HUGGINGFACEHUB_API_TOKEN,
-                model_kwargs={
-                    "temperature": TEMPERATURE,
-                    "max_new_tokens": MAX_NEW_TOKENS,
-                    "repetition_penalty": 1.2,  # Prevent repetitive responses
-                }
-            )
-            
+            self.llm = HuggingFaceEndpoint(
+                repo_id=HF_MODEL_NAME,
+                task="text-generation",
+                max_new_tokens=700,
+                do_sample=False,
+                repetition_penalty=1.03,
+                temperature=TEMPERATURE)
+            self.chat_model = ChatHuggingFace(llm=self.llm)
+    
             # Set up the conversation template
             template = """The following is a friendly conversation between a human and an AI assistant.
             
@@ -56,7 +55,7 @@ AI: """
             
             self.memory = ConversationBufferMemory(return_messages=True)
             self.conversation = ConversationChain(
-                llm=self.llm,
+                llm=self.chat_model,
                 prompt=self.prompt,
                 memory=self.memory,
                 verbose=False
