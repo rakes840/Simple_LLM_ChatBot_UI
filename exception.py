@@ -101,3 +101,23 @@ class ResourceExhaustedError(ChatbotException):
     """Exception raised when system resources are exhausted"""
     def __init__(self, message="System resources exhausted"):
         super().__init__(message, 503)
+
+# Helper functions for exception handling
+def raise_auth_error(message="Authentication failed"):
+    """Raise an authentication error with a custom message"""
+    raise AuthenticationError(message)
+
+def raise_db_error(message="Database error occurred"):
+    """Raise a database error with a custom message"""
+    raise DatabaseError(message)
+
+def raise_model_error(message="Error with language model"):
+    """Raise a model error with a custom message"""
+    raise LLMError(message)
+
+def handle_exception(e):
+    """Handle exceptions and return appropriate status code and message"""
+    if isinstance(e, ChatbotException):
+        return e.status_code, e.message
+    else:
+        return 500, f"Internal Server Error: {str(e)}"
