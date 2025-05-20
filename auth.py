@@ -69,8 +69,8 @@ def validate_email(email):
 def get_user_by_username(username):
     """Get a user by username."""
     try:
-        db = get_db()
-        return db.query(User).filter(User.username == username).first()
+        with get_db() as db:
+            return db.query(User).filter(User.username == username).first()
     except SQLAlchemyError as e:
         logger.error(f"Database error in get_user_by_username: {str(e)}")
         raise Exception("Database error occurred")
@@ -81,8 +81,8 @@ def get_user_by_username(username):
 def get_user_by_email(email):
     """Get a user by email."""
     try:
-        db = get_db()
-        return db.query(User).filter(User.email == email).first()
+        with get_db() as db:
+            return db.query(User).filter(User.email == email).first()
     except SQLAlchemyError as e:
         logger.error(f"Database error in get_user_by_email: {str(e)}")
         raise Exception("Database error occurred")
@@ -102,67 +102,76 @@ def create_user(username, email, password):
             logger.warning(f"Invalid email format: {email}")
             return None
         
-        db = get_db()
-        
-        # Check if username already exists
-        existing_username = db.query(User).filter(User.username == username).first()
-        if existing_username:
-            logger.info(f"Registration attempt with existing username: {username}")
-            return None
-        
-        # Check if email already exists
-        existing_email = db.query(User).filter(User.email == email).first()
-        if existing_email:
-            logger.info(f"Registration attempt with existing email: {email}")
-            return None
-        
-        # Hash password and create user
-        hashed_password = hash_password(password)
-        user = User(username=username, email=email, hashed_password=hashed_password)
-        
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        
-        logger.info(f"New user created: {username}")
-        return user
+        with get_db() as db:
+            # Check if username already exists
+            existing_username = db.query(User).filter(User.username == username).first()
+            if existing_username:
+                logger.info(f"Registration attempt with existing username: {username}")
+                return None
+            
+            # Check if email already exists
+            existing_email = db.query(User).filter(User.email == email).first()
+            if existing_email:
+                logger.info(f"Registration attempt with existing email: {email}")
+                return None
+            
+            # Hash password and create user
+            hashed_password = hash_password(password)
+            user = User(username=username, email=email, hashed_password=hashed_password)
+            
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+            logger.info(f"New user created: {username}")
+            return user
     
     except SQLAlchemyError as e:
-        db.rollback()
         logger.error(f"Database error in create_user: {str(e)}")
-        return None
-    except Exception as e:
         if 'db' in locals():
             db.rollback()
+        return None
+    except Exception as e:
         logger.error(f"Error in create_user: {str(e)}")
+        if 'db' in locals():
+            db.rollback()
         return None
 
 def authenticate_user(username, password):
     """Authenticate a user."""
     try:
         if not username or not password:
-            return False
+            return None
         
-        db = get_db()
-        user = db.query(User).filter(User.username == username).first()
-        
-        if not user:
-            logger.info(f"Authentication attempt for non-existent user: {username}")
-            return False
-        
-        if not verify_password(user.hashed_password, password):
-            logger.info(f"Failed authentication for user: {username}")
-            return False
-        
-        logger.info(f"Successful authentication for user: {username}")
-        return user
+        with get_db() as db:
+            user = db.query(User).filter(User.username == username).first()
+            
+            if not user:
+                logger.info(f"Authentication attempt for non-existent user: {username}")
+                return None
+            
+            if not verify_password(user.hashed_password, password):
+                logger.info(f"Failed authentication for user: {username}")
+                return None
+            
+            # Update last login time and login count
+            user.last_login = datetime.utcnow()
+            user.login_count += 1
+            db.commit()
+            
+            logger.info(f"Successful authentication for user: {username}")
+            return user
     
     except SQLAlchemyError as e:
         logger.error(f"Database error in authenticate_user: {str(e)}")
-        return False
+        if 'db' in locals():
+            db.rollback()
+        return None
     except Exception as e:
         logger.error(f"Error in authenticate_user: {str(e)}")
-        return False
+        if 'db' in locals():
+            db.rollback()
+        return None
 
 def create_session_token():
     """Create a unique session token."""
