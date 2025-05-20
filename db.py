@@ -9,14 +9,11 @@ from contextlib import contextmanager
 from typing import Generator, Optional
 import time
 
-# Import custom logger
-from logger import get_logger
-
-# Initialize logger
-logger = get_logger(__name__)
-
 # Create database directory if it doesn't exist
 os.makedirs('db', exist_ok=True)
+
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 # Database Configuration with connection pooling
 DATABASE_URL = "sqlite:///db/chatbot.db"
