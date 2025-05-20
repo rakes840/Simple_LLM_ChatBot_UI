@@ -1,42 +1,129 @@
+import asyncio
+import os
+import time
+from datetime import datetime
+from functools import lru_cache
+from typing import List, Dict, Any, Optional
+
 import streamlit as st
-import datetime
-from db import ChatHistory, get_db
+from sqlalchemy.exc import SQLAlchemyError
 
-def get_user_chat_history(user_id):
-   """Get chat history for a specific user."""
-   db = get_db()
-   history = db.query(ChatHistory).filter(ChatHistory.user_id == user_id).order_by(ChatHistory.timestamp).all()
-   return history
+from database import ChatHistory, get_db_session
+from logger import get_logger
 
-def format_chat_history(history):
-   """Format chat history for display in the sidebar."""
-   formatted_history = []
-   for chat in history:
-       date_str = chat.timestamp.strftime("%Y-%m-%d %H:%M")
-       # Truncate long messages for display
-       user_msg = chat.user_message[:30] + "..." if len(chat.user_message) > 30 else chat.user_message
-       formatted_history.append(f"{date_str}: {user_msg}")
-   return formatted_history
+# Get logger
+logger = get_logger()
 
-def format_timestamp(timestamp):
-   """Format timestamp for display."""
-   return timestamp.strftime("%Y-%m-%d %H:%M:%S")
+@lru_cache(maxsize=100)
+def get_user_chat_history(user_id: int, max_records: int = 100) -> List[ChatHistory]:
+    """Get chat history for a specific user with caching for performance."""
+    try:
+        start_time = time.time()
+        with get_db_session() as db:
+            history = db.query(ChatHistory).filter(
+                ChatHistory.user_id == user_id
+            ).order_by(ChatHistory.timestamp.desc()).limit(max_records).all()
+            
+            logger.info(f"Retrieved {len(history)} history records in {time.time() - start_time:.3f}s")
+            return list(reversed(history))  # Return in chronological order
+    except SQLAlchemyError as e:
+        logger.error(f"Database error in get_user_chat_history: {str(e)}")
+        return []
+    except Exception as e:
+        logger.error(f"Unexpected error in get_user_chat_history: {str(e)}")
+        return []
 
-def initialize_session_state():
-   """Initialize session state variables."""
-   if 'user_id' not in st.session_state:
-       st.session_state.user_id = None
-   if 'username' not in st.session_state:
-       st.session_state.username = None
-   if 'authenticated' not in st.session_state:
-       st.session_state.authenticated = False
-   if 'chat_history' not in st.session_state:
-       st.session_state.chat_history = []
-   if 'messages' not in st.session_state:
-       st.session_state.messages = []
-       
-def load_css():
-   """Load custom CSS for the app."""
-   with open("styles/main.css", "r") as f:
-       css = f.read()
-   return css
+def format_chat_history(history: List[ChatHistory]) -> List[str]:
+    """Format chat history for display in the sidebar."""
+    try:
+        formatted_history = []
+        for chat in history:
+            date_str = chat.timestamp.strftime("%m-%d %H:%M")
+            # Truncate long messages for display
+            user_msg = chat.user_message[:30] + "..." if len(chat.user_message) > 30 else chat.user_message
+            formatted_history.append(f"{date_str}: {user_msg}")
+        return formatted_history
+    except Exception as e:
+        logger.error(f"Error formatting chat history: {str(e)}")
+        return ["Error loading history"]
+
+def format_timestamp(timestamp: datetime) -> str:
+    """Format timestamp for display."""
+    try:
+        return timestamp.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return "Invalid timestamp"
+
+def initialize_session_state() -> None:
+    """Initialize session state variables."""
+    try:
+        # Define all required session state variables
+        required_vars = {
+            'user_id': None,
+            'username': None,
+            'authenticated': False,
+            'chat_history': [],
+            'messages': [],
+            'loaded_history': False,
+            'error': None,
+            'login_attempts': 0,
+            'last_attempt_time': None
+        }
+        
+        # Initialize any missing variables
+        for var, default in required_vars.items():
+            if var not in st.session_state:
+                st.session_state[var] = default
+    except Exception as e:
+        logger.error(f"Error initializing session state: {str(e)}")
+
+def load_css() -> str:
+    """Load custom CSS for the app with caching."""
+    try:
+        css_path = "styles/main.css"
+        if os.path.exists(css_path):
+            with open(css_path, "r") as f:
+                return f.read()
+        else:
+            logger.warning("CSS file not found")
+            return ""
+    except Exception as e:
+        logger.error(f"Error loading CSS: {str(e)}")
+        return ""
+
+def clear_session_on_logout() -> None:
+    """Clear all session state variables on logout."""
+    try:
+        keys_to_preserve = ['login_attempts', 'last_attempt_time']
+        preserved_values = {key: st.session_state.get(key) for key in keys_to_preserve}
+        
+        # Clear session state
+        for key in list(st.session_state.keys()):
+            if key not in keys_to_preserve:
+                del st.session_state[key]
+        
+        # Reinitialize with preserved values
+        initialize_session_state()
+        
+        # Restore preserved values
+        for key, value in preserved_values.items():
+            st.session_state[key] = value
+            
+        logger.info("Session cleared on logout")
+    except Exception as e:
+        logger.error(f"Error clearing session: {str(e)}")
+
+def handle_error(error_message: str, log_error: bool = True) -> None:
+    """Handle and display errors."""
+    if log_error:
+        logger.error(error_message)
+    st.error(error_message)
+    time.sleep(2)  # Give user time to read the error
+
+async def fetch_chat_history_async(user_id: int, max_records: int = 100) -> List[ChatHistory]:
+    """Asynchronously fetch chat history."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None, 
+        lambda: get_user_chat_history(user_id, max_records)
+    )
