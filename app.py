@@ -3,13 +3,12 @@ import os
 import time
 import logging
 import traceback
-import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from streamlit.components.v1 import html
+
 from db import create_tables, get_db, ChatHistory
 from auth import create_user, authenticate_user, validate_password_strength
 from chatbot import get_chatbot
-from utils import get_user_chat_history, format_chat_history, format_timestamp, initialize_session_state, setup_logging
+from utils import get_user_chat_history, format_chat_history, initialize_session_state, setup_logging
 from config import APP_TITLE, PAGE_ICON, LAYOUT, LOG_LEVEL, LOG_FORMAT, LOG_FILE
 
 # Set up logging
@@ -49,10 +48,8 @@ def load_css():
                 st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
         else:
             logger.warning("CSS file not found. UI styling might be affected.")
-            st.warning("CSS file not found. UI styling might be affected.")
     except Exception as e:
         logger.error(f"Failed to load CSS: {str(e)}")
-        st.warning("Failed to load styling. The application will continue with default styling.")
 
 load_css()
 
@@ -139,10 +136,11 @@ def login_form():
                 logger.error(f"Registration error: {str(e)}")
                 st.error("An error occurred during registration. Please try again later.")
 
-# Function to get chatbot response asynchronously
-def get_response_async(chatbot, user_input, user_id):
+# Function to get chatbot response synchronously (for thread pool)
+def get_response_sync(chatbot, user_input, user_id):
     try:
-        return chatbot.get_response(user_input, user_id)
+        response = chatbot.get_response(user_input, user_id)
+        return response
     except Exception as e:
         logger.error(f"Error getting chatbot response: {str(e)}\n{traceback.format_exc()}")
         return f"I'm sorry, I encountered an error while processing your request. Please try again later. Error: {str(e)}"
@@ -227,6 +225,10 @@ def chat_interface():
                 logger.error(f"Error loading messages from history: {str(e)}")
                 st.warning("Failed to load message history properly.")
         
+        # Initialize messages if not already
+        if 'messages' not in st.session_state:
+            st.session_state.messages = []
+        
         # Display chat messages
         try:
             for message in st.session_state.messages:
@@ -249,7 +251,7 @@ def chat_interface():
             with st.spinner("Thinking..."):
                 try:
                     # Submit task to thread pool
-                    future = executor.submit(get_response_async, chatbot, user_input, st.session_state.user_id)
+                    future = executor.submit(get_response_sync, chatbot, user_input, st.session_state.user_id)
                     
                     # Add timeout to prevent blocking indefinitely
                     bot_response = future.result(timeout=60)  # 60-second timeout
