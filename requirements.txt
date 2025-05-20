@@ -1,13 +1,29 @@
-streamlit==1.37.1
+# Core dependencies
+streamlit
 langchain
-sqlalchemy
-huggingface_hub
+huggingface-hub
 transformers
+
+# Database dependencies
+sqlalchemy
+sqlalchemy-utils
+
+# Utilities
 python-dotenv
+pydantic
+tqdm
+tenacity
+
+# Security
+bcrypt
+cryptography
+passlib
+
+# Async support
+asyncio
+aiohttp
+
+# Production dependencies
+click
+watchdog
 protobuf
-sentence-transformers
-accelerate
-langchain_huggingface 
-python-dotenv
-ipykernel
-langchain-community
