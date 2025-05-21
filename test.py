@@ -15,7 +15,7 @@ body {
 
 /* Update the Streamlit page layout */
 .stApp {
-    max-width: 100% !important; /* Change from fixed 760px to full width */
+    max-width: 100% !important;
     padding: 0 !important;
 }
 
@@ -25,7 +25,7 @@ body {
     left: 0;
     top: 0;
     height: 100vh;
-    width: 250px; /* Adjust width as needed */
+    width: 250px;
     overflow-y: auto;
     background-color: #F9FAFB;
     padding: 1rem;
@@ -58,7 +58,7 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    padding-bottom: 100px; /* Space for input box */
+    padding-bottom: 100px;
 }
 
 /* Chat message styling */
@@ -87,14 +87,14 @@ h1 {
     border-bottom-left-radius: 0.25rem;
 }
 
-/* Chat input area - fixed at bottom and centered properly */
+/* Chat input area - centered like ChatGPT */
 .chat-input-container {
     position: fixed;
     bottom: 0;
-    left: calc(50% + 125px); /* Account for sidebar by shifting right */
+    left: 50%;
     transform: translateX(-50%);
-    width: 760px; /* Fixed width matching chat area */
-    max-width: calc(100% - 300px); /* Give room for sidebar */
+    width: 760px;
+    max-width: 100%;
     background-color: #FFFFFF;
     padding: 1rem 2rem;
     border-top: 1px solid #E5E7EB;
@@ -119,7 +119,6 @@ h1 {
     width: 100% !important;
 }
 
-/* Make sure columns are properly sized */
 .row-widget.stHorizontal {
     width: 100% !important;
     max-width: 100% !important;
@@ -275,9 +274,9 @@ code {
 /* Responsive design */
 @media screen and (max-width: 992px) {
     .chat-input-container {
-        width: 80%;
-        max-width: calc(100% - 250px);
-        left: calc(50% + 125px); /* Adjust for sidebar */
+        width: 90%;
+        left: 50%;
+        transform: translateX(-50%);
     }
 }
 
@@ -285,33 +284,32 @@ code {
     .sidebar .sidebar-content {
         width: 200px;
     }
-    
+
     .chat-input-container {
-        width: 80%;
-        max-width: calc(100% - 200px);
-        left: calc(50% + 100px);
+        width: 90%;
+        left: 50%;
+        transform: translateX(-50%);
         padding: 0.75rem 1rem;
     }
-    
+
     .main .block-container {
         padding-left: 1rem !important;
         padding-right: 1rem !important;
     }
-    
+
     .chat-message {
         max-width: 90%;
     }
 }
 
-/* Smaller screens - collapsible sidebar */
 @media screen and (max-width: 576px) {
     .sidebar .sidebar-content {
         width: 180px;
     }
-    
+
     .chat-input-container {
-        width: 80%;
-        max-width: calc(100% - 180px);
-        left: calc(50% + 90px);
+        width: 90%;
+        left: 50%;
+        transform: translateX(-50%);
     }
 }
