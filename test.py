@@ -1,25 +1,269 @@
-/* Center the chat interface */
-.stChatFloatingInputContainer, 
-.stChatMessage, 
-.stChatMessageContent {
-    margin-left: auto !important;
-    margin-right: auto !important;
-    max-width: 800px !important; /* Adjust this width as needed */
+/* Main styles for the LangChain Hugging Face Chatbot - Claude-like Design */
+
+/* Global styles */
+* {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-/* Center the chat input box */
-.stChatInputContainer {
-    max-width: 800px !important; /* Keep consistent with above */
-    margin-left: auto !important;
-    margin-right: auto !important;
+body {
+    background-color: #FFFFFF;
+    color: #1A1A1A;
 }
 
-/* Ensure chat content stays centered */
-.stMarkdown {
+/* Streamlit container styling */
+.stApp {
+    max-width: 760px !important;  /* Claude's chat container width */
+    margin: 0 auto !important;
+    padding: 0 !important;
+}
+
+/* Center the main container */
+.main .block-container {
+    max-width: 760px !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    padding-top: 1rem !important;
+}
+
+/* Header styling */
+h1, h2, h3 {
+    color: #1A1A1A;
+    font-weight: 600;
+}
+
+h1 {
+    font-size: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+}
+
+/* Chat container */
+.chat-container {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-bottom: 100px; /* Space for input box */
 }
 
-.stMarkdown > div {
-    max-width: 800px;
+/* Chat message styling */
+.chat-message {
+    padding: 1rem 1.25rem;
+    border-radius: 0.75rem;
+    max-width: 85%;
+    line-height: 1.5;
+    font-size: 1rem;
+    overflow-wrap: break-word;
+}
+
+.user-message {
+    background-color: #F0F4F9;
+    color: #1A1A1A;
+    align-self: flex-end;
+    margin-left: auto;
+    border-bottom-right-radius: 0.25rem;
+}
+
+.bot-message {
+    background-color: #FFFFFF;
+    color: #1A1A1A;
+    align-self: flex-start;
+    border: 1px solid #E5E7EB;
+    border-bottom-left-radius: 0.25rem;
+}
+
+/* Chat input area - fixed at bottom */
+.chat-input-container {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 760px;
+    max-width: 100%;
+    background-color: #FFFFFF;
+    padding: 1rem 2rem;
+    border-top: 1px solid #E5E7EB;
+    z-index: 100;
+}
+
+/* Form styling */
+.stTextInput > div {
+    padding: 0;
+}
+
+.stTextInput > div > div {
+    border-radius: 0.75rem !important;
+    border-color: #E5E7EB !important;
+    background-color: #FFFFFF !important;
+}
+
+.stTextInput input {
+    font-size: 1rem !important;
+    padding: 0.75rem 1rem !important;
+    color: #1A1A1A !important;
+}
+
+.stTextInput input:focus {
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2) !important;
+    border-color: #6366F1 !important;
+}
+
+.stButton > button {
+    background-color: #6366F1 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
+    padding: 0.6rem 1.25rem !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease !important;
+}
+
+.stButton > button:hover {
+    background-color: #4F46E5 !important;
+}
+
+/* Hide Streamlit branding */
+#MainMenu {
+    visibility: hidden;
+}
+
+footer {
+    visibility: hidden;
+}
+
+header {
+    visibility: hidden;
+}
+
+/* Chat history sidebar styling */
+.sidebar .sidebar-content {
+    background-color: #F9FAFB;
+    padding: 1rem;
+    border-right: 1px solid #E5E7EB;
+}
+
+.sidebar h2 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.chat-history-item {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: #4B5563;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background-color 0.2s ease;
+}
+
+.chat-history-item:hover {
+    background-color: #F3F4F6;
+    color: #1F2937;
+}
+
+.chat-history-item.active {
+    background-color: #EEF2FF;
+    color: #4F46E5;
+    font-weight: 500;
+}
+
+/* Tab navigation - Claude style */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 0.5rem;
+    background-color: transparent;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: auto;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #6B7280;
+    background-color: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: transparent;
+    border-bottom: 2px solid #6366F1;
+    color: #4F46E5;
+}
+
+/* Code blocks */
+pre {
+    background-color: #F9FAFB;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+    border: 1px solid #E5E7EB;
+}
+
+code {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 0.875rem;
+}
+
+/* Responsive design */
+@media screen and (max-width: 768px) {
+    .main .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    .chat-input-container {
+        padding: 0.75rem 1rem;
+        width: 100%;
+    }
+    
+    .chat-message {
+        max-width: 90%;
+    }
+}
+
+/* Slider styling */
+.stSlider [data-baseweb="slider"] {
+    max-width: 300px;
+}
+
+.stSlider [data-baseweb="thumb"] {
+    background-color: #6366F1 !important;
+}
+
+.stSlider [data-baseweb="track-highlight"] {
+    background-color: #6366F1 !important;
+}
+
+/* Fix for chat height to allow scrolling */
+.main-content {
+    height: calc(100vh - 180px);
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #F9FAFB;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #D1D5DB;
+    border-radius: 20px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #9CA3AF;
 }
