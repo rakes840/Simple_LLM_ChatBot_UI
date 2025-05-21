@@ -1,315 +1,177 @@
-/* Main styles for the LangChain Hugging Face Chatbot - Claude-like Design */
+#db.py
 
-/* Global styles */
-* {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    session_name = Column(String)  # Will store the first question as session name
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+    # Define relationship with ChatHistory
+    messages = relationship("ChatHistory", back_populates="session", cascade="all, delete-orphan")
 
-body {
-    background-color: #FFFFFF;
-    color: #1A1A1A;
-}
+class ChatHistory(Base):
+    # Add this line to existing model
+    session_id = Column(Integer, ForeignKey("chat_sessions.id", ondelete="CASCADE"))
+    # Add this relationship
+    session = relationship("ChatSession", back_populates="messages")
 
-/* Update the Streamlit page layout */
-.stApp {
-    max-width: 100% !important;
-    padding: 0 !important;
-}
+#chatbot.py
+def save_conversation(self, user_id: int, user_message: str, bot_response: str, session_id: int = None) -> bool:
+    try:
+        with get_db() as db:
+            # Calculate response time in milliseconds
+            response_time = int(time.time() * 1000)
+            
+            chat_history = ChatHistory(
+                user_id=user_id,
+                session_id=session_id,  # Add session_id parameter
+                user_message=user_message,
+                bot_response=bot_response,
+                response_time=response_time
+            )
+            db.add(chat_history)
+            db.commit()
+            logger.info(f"Conversation saved for user {user_id} in session {session_id}")
+            return True
+    except Exception as e:
+        logger.error(f"Unexpected error saving conversation: {str(e)}")
+        return False
 
-/* Keep sidebar on the left */
-.sidebar .sidebar-content {
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100vh;
-    width: 250px;
-    overflow-y: auto;
-    background-color: #F9FAFB;
-    padding: 1rem;
-    border-right: 1px solid #E5E7EB;
-    z-index: 99;
-}
+#utils.py
+def get_user_chat_sessions(user_id: int, max_sessions: int = 10):
+    """Get chat sessions for a specific user."""
+    try:
+        with get_db() as db:
+            sessions = db.query(ChatSession).filter(
+                ChatSession.user_id == user_id
+            ).order_by(ChatSession.created_at.desc()).limit(max_sessions).all()
+            
+            return sessions
+    except Exception as e:
+        logger.error(f"Error getting chat sessions: {str(e)}")
+        return []
 
-/* Center the chat container but leave space for sidebar */
-.main .block-container {
-    max-width: 760px !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    padding-left: 2rem !important;
-    padding-right: 2rem !important;
-}
 
-/* Header styling */
-h1, h2, h3 {
-    color: #1A1A1A;
-    font-weight: 600;
-}
+def format_chat_sessions(sessions: List[ChatSession]) -> List[str]:
+    """Format chat sessions for display in the sidebar."""
+    try:
+        formatted_sessions = []
+        for session in sessions:
+            date_str = session.created_at.strftime("%m-%d %H:%M")
+            # Use session name (first question)
+            session_name = session.session_name
+            if len(session_name) > 30:
+                session_name = session_name[:30] + "..."
+            formatted_sessions.append(f"{date_str}: {session_name}")
+        return formatted_sessions
+    except Exception as e:
+        logger.error(f"Error formatting chat sessions: {str(e)}")
+        return ["Error loading sessions"]
 
-h1 {
-    font-size: 1.5rem !important;
-    margin-bottom: 1.5rem !important;
-}
 
-/* Chat container */
-.chat-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    padding-bottom: 100px;
-}
+def get_session_chat_history(session_id: int) -> List[ChatHistory]:
+    """Get chat history for a specific session."""
+    try:
+        with get_db() as db:
+            history = db.query(ChatHistory).filter(
+                ChatHistory.session_id == session_id
+            ).order_by(ChatHistory.timestamp).all()
+            return history
+    except Exception as e:
+        logger.error(f"Error getting session history: {str(e)}")
+        return []
 
-/* Chat message styling */
-.chat-message {
-    padding: 1rem 1.25rem;
-    border-radius: 0.75rem;
-    max-width: 85%;
-    line-height: 1.5;
-    font-size: 1rem;
-    overflow-wrap: break-word;
-}
+#app.py
 
-.user-message {
-    background-color: #F0F4F9;
-    color: #1A1A1A;
-    align-self: flex-end;
-    margin-left: auto;
-    border-bottom-right-radius: 0.25rem;
-}
+# Add these lines to the required_vars dictionary
+'current_session_id': None,
+'current_session_name': None,
 
-.bot-message {
-    background-color: #FFFFFF;
-    color: #1A1A1A;
-    align-self: flex-start;
-    border: 1px solid #E5E7EB;
-    border-bottom-left-radius: 0.25rem;
-}
+#add new chatbutton:
 
-/* Chat input area - centered like ChatGPT */
-.chat-input-container {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 760px;
-    max-width: 100%;
-    background-color: #FFFFFF;
-    padding: 1rem 2rem;
-    border-top: 1px solid #E5E7EB;
-    z-index: 100;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-}
+# Add this right below the logout button in the sidebar
+if st.sidebar.button("New Chat", key="new_chat_button"):
+    # Clear current messages but keep user logged in
+    st.session_state.messages = []
+    st.session_state.current_session_id = None
+    st.session_state.current_session_name = None
+    st.rerun()
 
-/* Make the input element itself have proper dimensions */
-.stTextInput {
-    max-width: 100% !important;
-}
+st.sidebar.markdown("---")
+st.sidebar.header("Past Conversations")
 
-.stTextInput > div {
-    padding: 0;
-    width: 100% !important;
-}
+# Get user chat sessions from database
+try:
+    sessions = get_user_chat_sessions(st.session_state.user_id)
+    if sessions:
+        formatted_sessions = format_chat_sessions(sessions)
+        selected_session_idx = st.sidebar.radio(
+            "Select a previous conversation:",
+            range(len(formatted_sessions)),
+            format_func=lambda i: formatted_sessions[i],
+            key="chat_sessions_radio"
+        )
+        
+        # If a session is selected, load that session
+        if st.sidebar.button("Load Selected Chat"):
+            session = sessions[selected_session_idx]
+            st.session_state.current_session_id = session.id
+            st.session_state.current_session_name = session.session_name
+            
+            # Load chat history for this session
+            with st.spinner("Loading conversation..."):
+                session_messages = get_session_chat_history(session.id)
+                st.session_state.messages = []
+                for message in session_messages:
+                    st.session_state.messages.append({"role": "user", "content": message.user_message})
+                    st.session_state.messages.append({"role": "assistant", "content": message.bot_response})
+            st.rerun()
+    else:
+        st.sidebar.info("No past conversations available.")
+except Exception as e:
+    logger.error(f"Error loading chat sessions: {str(e)}")
+    st.sidebar.error("Failed to load chat sessions.")
 
-.stTextInput > div > div {
-    border-radius: 0.75rem !important;
-    border-color: #E5E7EB !important;
-    background-color: #FFFFFF !important;
-    width: 100% !important;
-}
 
-.row-widget.stHorizontal {
-    width: 100% !important;
-    max-width: 100% !important;
-}
 
-.stTextInput input {
-    font-size: 1rem !important;
-    padding: 0.75rem 1rem !important;
-    color: #1A1A1A !important;
-}
+# Inside the if user_input: block, right before getting bot response
+# Check if this is a new session
+if st.session_state.current_session_id is None:
+    try:
+        # Create a new chat session with first message as the name
+        with get_db() as db:
+            new_session = ChatSession(
+                user_id=st.session_state.user_id,
+                session_name=user_input  # First question becomes session name
+            )
+            db.add(new_session)
+            db.commit()
+            db.refresh(new_session)
+            
+            st.session_state.current_session_id = new_session.id
+            st.session_state.current_session_name = user_input
+            logger.info(f"Created new chat session {new_session.id} for user {st.session_state.user_id}")
+    except Exception as e:
+        logger.error(f"Error creating chat session: {str(e)}")
 
-.stTextInput input:focus {
-    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2) !important;
-    border-color: #6366F1 !important;
-}
+# Pass the session ID when getting bot response
+future = executor.submit(get_response_sync, chatbot, user_input, st.session_state.user_id, st.session_state.current_session_id)
 
-.stButton > button {
-    background-color: #6366F1 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 0.5rem !important;
-    padding: 0.6rem 1.25rem !important;
-    font-size: 1rem !important;
-    font-weight: 500 !important;
-    cursor: pointer !important;
-    transition: background-color 0.2s ease !important;
-}
 
-.stButton > button:hover {
-    background-color: #4F46E5 !important;
-}
 
-/* Hide Streamlit branding */
-#MainMenu {
-    visibility: hidden;
-}
 
-footer {
-    visibility: hidden;
-}
 
-header {
-    visibility: hidden;
-}
 
-/* Chat history sidebar styling */
-.sidebar h2 {
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
-}
 
-.chat-history-item {
-    padding: 0.75rem 1rem;
-    border-radius: 0.5rem;
-    margin-bottom: 0.5rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    color: #4B5563;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: background-color 0.2s ease;
-}
 
-.chat-history-item:hover {
-    background-color: #F3F4F6;
-    color: #1F2937;
-}
 
-.chat-history-item.active {
-    background-color: #EEF2FF;
-    color: #4F46E5;
-    font-weight: 500;
-}
 
-/* Tab navigation - Claude style */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 0.5rem;
-    background-color: transparent;
-    border-bottom: 1px solid #E5E7EB;
-}
 
-.stTabs [data-baseweb="tab"] {
-    height: auto;
-    padding: 0.75rem 1rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: #6B7280;
-    background-color: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-}
 
-.stTabs [aria-selected="true"] {
-    background-color: transparent;
-    border-bottom: 2px solid #6366F1;
-    color: #4F46E5;
-}
 
-/* Code blocks */
-pre {
-    background-color: #F9FAFB;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    overflow-x: auto;
-    margin: 1rem 0;
-    border: 1px solid #E5E7EB;
-}
 
-code {
-    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-    font-size: 0.875rem;
-}
 
-/* Slider styling */
-.stSlider [data-baseweb="slider"] {
-    max-width: 300px;
-}
 
-.stSlider [data-baseweb="thumb"] {
-    background-color: #6366F1 !important;
-}
 
-.stSlider [data-baseweb="track-highlight"] {
-    background-color: #6366F1 !important;
-}
 
-/* Fix for chat height to allow scrolling */
-.main-content {
-    height: calc(100vh - 180px);
-    overflow-y: auto;
-    padding-right: 10px;
-}
-
-/* Scrollbar styling */
-::-webkit-scrollbar {
-    width: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: #F9FAFB;
-}
-
-::-webkit-scrollbar-thumb {
-    background-color: #D1D5DB;
-    border-radius: 20px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background-color: #9CA3AF;
-}
-
-/* Responsive design */
-@media screen and (max-width: 992px) {
-    .chat-input-container {
-        width: 90%;
-        left: 50%;
-        transform: translateX(-50%);
-    }
-}
-
-@media screen and (max-width: 768px) {
-    .sidebar .sidebar-content {
-        width: 200px;
-    }
-
-    .chat-input-container {
-        width: 90%;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 0.75rem 1rem;
-    }
-
-    .main .block-container {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-
-    .chat-message {
-        max-width: 90%;
-    }
-}
-
-@media screen and (max-width: 576px) {
-    .sidebar .sidebar-content {
-        width: 180px;
-    }
-
-    .chat-input-container {
-        width: 90%;
-        left: 50%;
-        transform: translateX(-50%);
-    }
-}
