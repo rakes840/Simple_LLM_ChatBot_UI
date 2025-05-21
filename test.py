@@ -15,31 +15,31 @@ body {
 
 /* Update the Streamlit page layout */
 .stApp {
-  max-width: 100% !important; /* Change from fixed 760px to full width */
-  padding: 0 !important;
+    max-width: 100% !important; /* Change from fixed 760px to full width */
+    padding: 0 !important;
 }
 
 /* Keep sidebar on the left */
 .sidebar .sidebar-content {
-  position: fixed;
-  left: 0;
-  top: 0;
-  height: 100vh;
-  width: 250px; /* Adjust width as needed */
-  overflow-y: auto;
-  background-color: #F9FAFB;
-  border-right: 1px solid #E5E7EB;
-  z-index: 99;
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 250px; /* Adjust width as needed */
+    overflow-y: auto;
+    background-color: #F9FAFB;
+    padding: 1rem;
+    border-right: 1px solid #E5E7EB;
+    z-index: 99;
 }
-
 
 /* Center the chat container but leave space for sidebar */
 .main .block-container {
-  max-width: 760px !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  padding-left: 2rem !important;
-  padding-right: 2rem !important;
+    max-width: 760px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
 }
 
 /* Header styling */
@@ -59,32 +59,6 @@ h1 {
     flex-direction: column;
     gap: 1.5rem;
     padding-bottom: 100px; /* Space for input box */
-}
-
-
-/* Chat input area - fixed at bottom and centered */
-.chat-input-container {
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 760px; /* Fixed width matching chat area */
-    max-width: 80%; /* Limit width on smaller screens */
-    margin-left: 125px; /* Half of sidebar width to offset the centering */
-    background-color: #FFFFFF;
-    padding: 1rem 2rem;
-    border-top: 1px solid #E5E7EB;
-    z-index: 100;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-}
-
-/* Make the input element itself have proper dimensions */
-.stTextInput {
-    max-width: 100% !important;
-}
-
-.stTextInput > div > div {
-    width: 100% !important;
 }
 
 /* Chat message styling */
@@ -113,16 +87,42 @@ h1 {
     border-bottom-left-radius: 0.25rem;
 }
 
+/* Chat input area - fixed at bottom and centered properly */
+.chat-input-container {
+    position: fixed;
+    bottom: 0;
+    left: calc(50% + 125px); /* Account for sidebar by shifting right */
+    transform: translateX(-50%);
+    width: 760px; /* Fixed width matching chat area */
+    max-width: calc(100% - 300px); /* Give room for sidebar */
+    background-color: #FFFFFF;
+    padding: 1rem 2rem;
+    border-top: 1px solid #E5E7EB;
+    z-index: 100;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
 
-/* Form styling */
+/* Make the input element itself have proper dimensions */
+.stTextInput {
+    max-width: 100% !important;
+}
+
 .stTextInput > div {
     padding: 0;
+    width: 100% !important;
 }
 
 .stTextInput > div > div {
     border-radius: 0.75rem !important;
     border-color: #E5E7EB !important;
     background-color: #FFFFFF !important;
+    width: 100% !important;
+}
+
+/* Make sure columns are properly sized */
+.row-widget.stHorizontal {
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 .stTextInput input {
@@ -166,12 +166,6 @@ header {
 }
 
 /* Chat history sidebar styling */
-.sidebar .sidebar-content {
-    background-color: #F9FAFB;
-    padding: 1rem;
-    border-right: 1px solid #E5E7EB;
-}
-
 .sidebar h2 {
     font-size: 1.1rem;
     margin-bottom: 1rem;
@@ -240,23 +234,6 @@ code {
     font-size: 0.875rem;
 }
 
-/* Responsive design */
-@media screen and (max-width: 768px) {
-    .main .block-container {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    
-    .chat-input-container {
-        padding: 0.75rem 1rem;
-        width: 100%;
-    }
-    
-    .chat-message {
-        max-width: 90%;
-    }
-}
-
 /* Slider styling */
 .stSlider [data-baseweb="slider"] {
     max-width: 300px;
@@ -295,20 +272,46 @@ code {
     background-color: #9CA3AF;
 }
 
+/* Responsive design */
 @media screen and (max-width: 992px) {
-  .chat-input-container {
-    width: calc(100% - 250px);
-    left: calc(50% + 125px); /* Adjust for sidebar */
-  }
+    .chat-input-container {
+        width: 80%;
+        max-width: calc(100% - 250px);
+        left: calc(50% + 125px); /* Adjust for sidebar */
+    }
 }
 
 @media screen and (max-width: 768px) {
-  .sidebar .sidebar-content {
-    width: 200px;
-  }
-  
+    .sidebar .sidebar-content {
+        width: 200px;
+    }
+    
+    .chat-input-container {
+        width: 80%;
+        max-width: calc(100% - 200px);
+        left: calc(50% + 100px);
+        padding: 0.75rem 1rem;
+    }
+    
+    .main .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    
+    .chat-message {
+        max-width: 90%;
+    }
 }
 
+/* Smaller screens - collapsible sidebar */
+@media screen and (max-width: 576px) {
+    .sidebar .sidebar-content {
+        width: 180px;
+    }
     
-
-
+    .chat-input-container {
+        width: 80%;
+        max-width: calc(100% - 180px);
+        left: calc(50% + 90px);
+    }
+}
