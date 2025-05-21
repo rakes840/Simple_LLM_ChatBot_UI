@@ -2,15 +2,20 @@ import time
 import logging
 from functools import lru_cache
 from typing import Optional
-
 from langchain.chains import ConversationChain
 from langchain.memory import ConversationBufferMemory
 from langchain.llms import HuggingFaceHub
 from langchain.prompts import PromptTemplate
 from sqlalchemy.exc import SQLAlchemyError
-
+import os
 from db import ChatHistory, get_db
 from config import HF_MODEL_NAME, MAX_NEW_TOKENS, TEMPERATURE
+from dotenv import load_dotenv
+load_dotenv()
+from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
+
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = os.getenv('HF_TOKEN')
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -20,16 +25,17 @@ class Chatbot:
         """Initialize the chatbot with a specified model."""
         try:
             # Initialize the LLM
-            self.llm = HuggingFaceHub(
+            self.llm = HuggingFaceEndpoint(
                 repo_id=model_name,
                 task="text-generation",
-                model_kwargs={
-                    "max_new_tokens": MAX_NEW_TOKENS,
-                    "do_sample": True,
-                    "temperature": TEMPERATURE,
-                    "repetition_penalty": 1.03
-                }
+                max_new_tokens=700,
+                do_sample=False,
+                repetition_penalty=1.03,
+                temperature = TEMPERATURE,
+                typical_p = 0.95
             )
+        
+            self.chat_model = ChatHuggingFace(llm=self.llm)  
     
             # Set up the conversation template
             template = """The following is a friendly conversation between a human and an AI assistant.
@@ -46,7 +52,7 @@ AI: """
             
             self.memory = ConversationBufferMemory(return_messages=True)
             self.conversation = ConversationChain(
-                llm=self.llm,
+                llm=self.chat_model,
                 prompt=self.prompt,
                 memory=self.memory,
                 verbose=False
