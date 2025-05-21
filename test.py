@@ -13,19 +13,33 @@ body {
     color: #1A1A1A;
 }
 
-/* Streamlit container styling */
+/* Update the Streamlit page layout */
 .stApp {
-    max-width: 760px !important;  /* Claude's chat container width */
-    margin: 0 auto !important;
-    padding: 0 !important;
+  max-width: 100% !important; /* Change from fixed 760px to full width */
+  padding: 0 !important;
 }
 
-/* Center the main container */
+/* Keep sidebar on the left */
+.sidebar .sidebar-content {
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  width: 250px; /* Adjust width as needed */
+  overflow-y: auto;
+  background-color: #F9FAFB;
+  border-right: 1px solid #E5E7EB;
+  z-index: 99;
+}
+
+
+/* Center the chat container but leave space for sidebar */
 .main .block-container {
-    max-width: 760px !important;
-    padding-left: 2rem !important;
-    padding-right: 2rem !important;
-    padding-top: 1rem !important;
+  max-width: 760px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
 }
 
 /* Header styling */
@@ -45,6 +59,21 @@ h1 {
     flex-direction: column;
     gap: 1.5rem;
     padding-bottom: 100px; /* Space for input box */
+}
+
+
+/* Keep input centered with the chat but account for sidebar */
+.chat-input-container {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 760px;
+  max-width: calc(100% - 250px); /* Account for sidebar width */
+  background-color: #FFFFFF;
+  padding: 1rem 2rem;
+  border-top: 1px solid #E5E7EB;
+  z-index: 100;
 }
 
 /* Chat message styling */
@@ -267,3 +296,26 @@ code {
 ::-webkit-scrollbar-thumb:hover {
     background-color: #9CA3AF;
 }
+
+@media screen and (max-width: 992px) {
+  .chat-input-container {
+    width: calc(100% - 250px);
+    left: calc(50% + 125px); /* Adjust for sidebar */
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .sidebar .sidebar-content {
+    width: 200px;
+  }
+  
+  .chat-input-container {
+    width: calc(100% - 200px);
+    left: calc(50% + 100px);
+  }
+}
+
+    
+
+
+
