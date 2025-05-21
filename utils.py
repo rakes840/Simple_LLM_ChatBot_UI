@@ -12,7 +12,7 @@ from logger import get_logger
 # Get logger
 logger = get_logger()
 
-@lru_cache(maxsize=100)
+#@lru_cache(maxsize=100)
 def get_user_chat_history(user_id: int, max_records: int = 100) -> List[ChatHistory]:
     """Get chat history for a specific user with caching for performance."""
     try:
