@@ -3,23 +3,21 @@ import secrets
 import uuid
 import re
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from db import User, get_db
 
 logger = logging.getLogger(__name__)
 
-# Authentication functions
 def hash_password(password):
     """Hash a password for storing."""
     try:
-        salt = secrets.token_hex(16)  # Increased salt length for better security
-        # Use a more secure hashing method with more iterations
+        salt = secrets.token_hex(16)
         pwdhash = hashlib.pbkdf2_hmac(
-            'sha256', 
-            password.encode(), 
-            salt.encode(), 
-            100000  # More iterations for increased security
+            'sha256',
+            password.encode(),
+            salt.encode(),
+            100000
         ).hex()
         return f"{salt}${pwdhash}"
     except Exception as e:
@@ -30,11 +28,10 @@ def verify_password(stored_password, provided_password):
     """Verify a stored password against a provided password."""
     try:
         salt, stored_hash = stored_password.split('$')
-        # Use the same hashing method as in hash_password
         pwdhash = hashlib.pbkdf2_hmac(
-            'sha256', 
-            provided_password.encode(), 
-            salt.encode(), 
+            'sha256',
+            provided_password.encode(),
+            salt.encode(),
             100000
         ).hex()
         return pwdhash == stored_hash
@@ -46,19 +43,14 @@ def validate_password_strength(password):
     """Validate password strength."""
     if len(password) < 8:
         return {'valid': False, 'message': "Password must be at least 8 characters long"}
-    
     if not re.search(r'[A-Z]', password):
         return {'valid': False, 'message': "Password must contain at least one uppercase letter"}
-    
     if not re.search(r'[a-z]', password):
         return {'valid': False, 'message': "Password must contain at least one lowercase letter"}
-    
     if not re.search(r'[0-9]', password):
         return {'valid': False, 'message': "Password must contain at least one number"}
-    
-    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+    if not re.search(r'[!@#$%^&*(),.?\":{}|<>]', password):
         return {'valid': False, 'message': "Password must contain at least one special character"}
-    
     return {'valid': True, 'message': "Password is strong"}
 
 def validate_email(email):
@@ -93,39 +85,28 @@ def get_user_by_email(email):
 def create_user(username, email, password):
     """Create a new user."""
     try:
-        # Validate inputs
         if not username or not email or not password:
             logger.warning("Attempted to create user with missing fields")
             return None
-        
         if not validate_email(email):
             logger.warning(f"Invalid email format: {email}")
             return None
-        
         with get_db() as db:
-            # Check if username already exists
             existing_username = db.query(User).filter(User.username == username).first()
             if existing_username:
                 logger.info(f"Registration attempt with existing username: {username}")
                 return None
-            
-            # Check if email already exists
             existing_email = db.query(User).filter(User.email == email).first()
             if existing_email:
                 logger.info(f"Registration attempt with existing email: {email}")
                 return None
-            
-            # Hash password and create user
             hashed_password = hash_password(password)
             user = User(username=username, email=email, hashed_password=hashed_password)
-            
             db.add(user)
             db.commit()
             db.refresh(user)
-            
             logger.info(f"New user created: {username}")
             return user
-    
     except SQLAlchemyError as e:
         logger.error(f"Database error in create_user: {str(e)}")
         if 'db' in locals():
@@ -142,24 +123,17 @@ def authenticate_user(username, password):
     try:
         if not username or not password:
             return None
-        
         with get_db() as db:
             user = db.query(User).filter(User.username == username).first()
-            
             if not user:
                 logger.info(f"Authentication attempt for non-existent user: {username}")
                 return None
-            
             if not verify_password(user.hashed_password, password):
                 logger.info(f"Failed authentication for user: {username}")
                 return None
-            
-            # Update last login time and login count
             user.last_login = datetime.utcnow()
             user.login_count += 1
             db.commit()
-            
-            # Create a dictionary with user data to avoid detached instance issues
             user_data = {
                 'id': user.id,
                 'username': user.username,
@@ -167,10 +141,8 @@ def authenticate_user(username, password):
                 'last_login': user.last_login,
                 'login_count': user.login_count
             }
-            
             logger.info(f"Successful authentication for user: {username}")
-            return user_data  # Return dictionary instead of SQLAlchemy object
-    
+            return user_data
     except SQLAlchemyError as e:
         logger.error(f"Database error in authenticate_user: {str(e)}")
         if 'db' in locals():
@@ -182,12 +154,10 @@ def authenticate_user(username, password):
             db.rollback()
         return None
 
-
 def create_session_token():
     """Create a unique session token."""
     try:
         return str(uuid.uuid4())
     except Exception as e:
         logger.error(f"Error creating session token: {str(e)}")
-        # Fallback to a simpler method in case of error
         return secrets.token_hex(16)
