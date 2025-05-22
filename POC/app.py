@@ -72,28 +72,28 @@ def login_form():
                     return
                 with st.spinner("Authenticating..."):
                     user = authenticate_user(username, password)
-                    if user:
-                        logger.info(f"User '{user['username']}' logged in successfully")
-                        st.session_state.user_id = user["id"]
-                        st.session_state.username = user["username"]
-                        st.session_state.authenticated = True
-                        st.session_state.login_attempts = 0
-                        st.success(f"Welcome back, {user['username']}!")
-                        time.sleep(1)
-                        st.experimental_rerun()
+                if user:
+                    logger.info(f"User '{user['username']}' logged in successfully")
+                    st.session_state.user_id = user["id"]
+                    st.session_state.username = user["username"]
+                    st.session_state.authenticated = True
+                    st.session_state.login_attempts = 0
+                    st.success(f"Welcome back, {user['username']}!")
+                    time.sleep(1)
+                    st.experimental_rerun()
+                else:
+                    if "login_attempts" not in st.session_state:
+                        st.session_state.login_attempts = 1
                     else:
-                        if "login_attempts" not in st.session_state:
-                            st.session_state.login_attempts = 1
-                        else:
-                            st.session_state.login_attempts += 1
-                        logger.warning(
-                            f"Failed login attempt for username '{username}' (Attempt #{st.session_state.login_attempts})"
-                        )
-                        if st.session_state.login_attempts >= 5:
-                            st.error("Too many failed login attempts. Please try again later.")
-                            time.sleep(3)
-                        else:
-                            st.error("Invalid username or password.")
+                        st.session_state.login_attempts += 1
+                    logger.warning(
+                        f"Failed login attempt for username '{username}' (Attempt #{st.session_state.login_attempts})"
+                    )
+                    if st.session_state.login_attempts >= 5:
+                        st.error("Too many failed login attempts. Please try again later.")
+                        time.sleep(3)
+                    else:
+                        st.error("Invalid username or password.")
             except Exception as e:
                 logger.error(f"Login error: {str(e)}")
                 st.error("An error occurred during login. Please try again later.")
@@ -118,11 +118,11 @@ def login_form():
                     return
                 with st.spinner("Creating account..."):
                     user = create_user(new_username, new_email, new_password)
-                    if user:
-                        logger.info(f"New user registered: {new_username}")
-                        st.success("Registration successful! Please log in.")
-                    else:
-                        st.error("Username or email already exists. Please choose another one.")
+                if user:
+                    logger.info(f"New user registered: {new_username}")
+                    st.success("Registration successful! Please log in.")
+                else:
+                    st.error("Username or email already exists or invalid. Please choose another one.")
             except Exception as e:
                 logger.error(f"Registration error: {str(e)}")
                 st.error("An error occurred during registration. Please try again later.")
@@ -140,13 +140,11 @@ def get_response_sync(chatbot, user_input, user_id, current_session_id):
 def chat_interface():
     try:
         st.sidebar.title(f"Welcome, {st.session_state.username}!")
-
         # Logout button
         if st.sidebar.button("Logout", key="logout_button"):
             logger.info(f"User '{st.session_state.username}' logged out")
             st.session_state.clear()
             st.experimental_rerun()
-
         # New Chat button: Save current session messages, then clear for new session
         if st.sidebar.button("New Chat", key="new_chat_button"):
             # Save current session messages if any
@@ -168,12 +166,11 @@ def chat_interface():
                             )
                             db.add(chat_entry)
                         db.commit()
-                    logger.info(
-                        f"Saved chat history for session {st.session_state.current_session_id} before starting new chat"
-                    )
+                        logger.info(
+                            f"Saved chat history for session {st.session_state.current_session_id} before starting new chat"
+                        )
                 except Exception as e:
                     logger.error(f"Error saving chat history on New Chat: {str(e)}")
-
             st.session_state.messages = []
             st.session_state.current_session_id = None
             st.session_state.current_session_name = None
@@ -181,7 +178,6 @@ def chat_interface():
 
         st.sidebar.markdown("---")
         st.sidebar.header("Past Conversations")
-
         try:
             sessions = get_user_chat_sessions(st.session_state.user_id)
             if sessions:
@@ -192,17 +188,16 @@ def chat_interface():
                     format_func=lambda i: formatted_sessions[i],
                     key="chat_sessions_radio",
                 )
-
                 if st.sidebar.button("Load Selected Chat"):
                     session = sessions[selected_session_idx]
                     st.session_state.current_session_id = session.id
                     st.session_state.current_session_name = session.session_name
                     with st.spinner("Loading conversation..."):
                         session_messages = get_session_chat_history(session.id)
-                        st.session_state.messages = []
-                        for message in session_messages:
-                            st.session_state.messages.append({"role": "user", "content": message.user_message})
-                            st.session_state.messages.append({"role": "assistant", "content": message.bot_response})
+                    st.session_state.messages = []
+                    for message in session_messages:
+                        st.session_state.messages.append({"role": "user", "content": message.user_message})
+                        st.session_state.messages.append({"role": "assistant", "content": message.bot_response})
                     st.experimental_rerun()
             else:
                 st.sidebar.info("No past conversations available.")
@@ -212,11 +207,8 @@ def chat_interface():
 
         st.sidebar.markdown("---")
 
-        # --- "Chat History" section is REMOVED as per your request ---
-
-        st.title("ðŸ¤– LangChain Hugging Face Chatbot")
+        st.title("🤖 LangChain Hugging Face Chatbot")
         st.markdown("---")
-
         try:
             chatbot = get_chatbot()
         except Exception as e:
@@ -240,7 +232,6 @@ def chat_interface():
             st.session_state.messages.append({"role": "user", "content": user_input})
             with st.chat_message("user"):
                 st.write(user_input)
-
             with st.spinner("Thinking..."):
                 try:
                     if st.session_state.current_session_id is None:
@@ -260,7 +251,6 @@ def chat_interface():
                                 )
                         except Exception as e:
                             logger.error(f"Error creating chat session: {str(e)}")
-
                     future = executor.submit(
                         get_response_sync,
                         chatbot,
@@ -269,11 +259,9 @@ def chat_interface():
                         st.session_state.current_session_id,
                     )
                     bot_response = future.result(timeout=60)
-
                     st.session_state.messages.append({"role": "assistant", "content": bot_response})
                     with st.chat_message("assistant"):
                         st.write(bot_response)
-
                     try:
                         with get_db() as db:
                             chat_entry = ChatHistory(
@@ -285,14 +273,12 @@ def chat_interface():
                             db.commit()
                     except Exception as e:
                         logger.error(f"Error saving chat history: {str(e)}")
-
                 except TimeoutError:
                     logger.error(f"Timeout getting response for user '{st.session_state.username}'")
                     st.error("The chatbot took too long to respond. Please try again with a shorter or clearer message.")
                 except Exception as e:
                     logger.error(f"Error in chat processing: {str(e)}")
                     st.error("An error occurred while processing your message. Please try again.")
-
     except Exception as e:
         logger.error(f"Chat interface error: {str(e)}\n{traceback.format_exc()}")
         st.error("An unexpected error occurred. Please refresh the page or contact an administrator.")
