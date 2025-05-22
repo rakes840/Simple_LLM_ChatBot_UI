@@ -191,6 +191,7 @@ def chat_interface():
                 )
                 # --- LOAD CHAT HISTORY AS SOON AS RADIO BUTTON CHANGES ---
                 session = sessions[selected_session_idx]
+                # Only load if current session is not the same as selected
                 if (
                     st.session_state.get("current_session_id") != session.id
                     or not st.session_state.get("messages")
