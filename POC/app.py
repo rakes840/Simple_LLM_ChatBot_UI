@@ -17,7 +17,7 @@ from utils import (
     format_chat_sessions,
     get_user_chat_sessions,
 )
-from config import APP_TITLE, PAGE_ICON, LOG_LEVEL, LOG_FORMAT, LOG_FILE
+from config import APP_TITLE, PAGE_ICON, LAYOUT, LOG_LEVEL, LOG_FORMAT, LOG_FILE
 
 # Set up logging
 setup_logging(LOG_LEVEL, LOG_FORMAT, LOG_FILE)
@@ -38,7 +38,7 @@ except Exception as e:
 executor = ThreadPoolExecutor(max_workers=10)
 
 # Page configuration
-st.set_page_config(page_title=APP_TITLE, page_icon=PAGE_ICON, layout="centered")
+st.set_page_config(page_title=APP_TITLE, page_icon=PAGE_ICON, layout=LAYOUT)
 
 # Initialize session state
 initialize_session_state()
@@ -185,8 +185,13 @@ def chat_interface():
                     format_func=lambda i: formatted_sessions[i],
                     key="chat_sessions_radio",
                 )
-                if st.sidebar.button("Load Selected Chat"):
-                    session = sessions[selected_session_idx]
+                # --- LOAD CHAT HISTORY AS SOON AS RADIO BUTTON CHANGES ---
+                session = sessions[selected_session_idx]
+                if (
+                    st.session_state.get("current_session_id") != session.id
+                    or not st.session_state.get("messages")
+                    or len(st.session_state.messages) == 0
+                ):
                     st.session_state.current_session_id = session.id
                     st.session_state.current_session_name = session.session_name
                     with st.spinner("Loading conversation..."):
