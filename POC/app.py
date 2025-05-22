@@ -17,7 +17,7 @@ from utils import (
     format_chat_sessions,
     get_user_chat_sessions,
 )
-from config import APP_TITLE, PAGE_ICON, LAYOUT, LOG_LEVEL, LOG_FORMAT, LOG_FILE
+from config import APP_TITLE, PAGE_ICON, LOG_LEVEL, LOG_FORMAT, LOG_FILE
 
 # Set up logging
 setup_logging(LOG_LEVEL, LOG_FORMAT, LOG_FILE)
@@ -38,7 +38,7 @@ except Exception as e:
 executor = ThreadPoolExecutor(max_workers=10)
 
 # Page configuration
-st.set_page_config(page_title=APP_TITLE, page_icon=PAGE_ICON, layout=LAYOUT)
+st.set_page_config(page_title=APP_TITLE, page_icon=PAGE_ICON, layout="centered")
 
 # Initialize session state
 initialize_session_state()
@@ -46,8 +46,9 @@ initialize_session_state()
 # Custom CSS
 def load_css():
     try:
-        if os.path.exists("styles/main.css"):
-            with open("styles/main.css", "r") as f:
+        css_path = "styles/main.css"
+        if os.path.exists(css_path):
+            with open(css_path, "r") as f:
                 st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
         else:
             logger.warning("CSS file not found. UI styling might be affected.")
@@ -82,10 +83,7 @@ def login_form():
                     time.sleep(1)
                     st.experimental_rerun()
                 else:
-                    if "login_attempts" not in st.session_state:
-                        st.session_state.login_attempts = 1
-                    else:
-                        st.session_state.login_attempts += 1
+                    st.session_state.login_attempts = st.session_state.get("login_attempts", 0) + 1
                     logger.warning(
                         f"Failed login attempt for username '{username}' (Attempt #{st.session_state.login_attempts})"
                     )
@@ -145,9 +143,8 @@ def chat_interface():
             logger.info(f"User '{st.session_state.username}' logged out")
             st.session_state.clear()
             st.experimental_rerun()
-        # New Chat button: Save current session messages, then clear for new session
+        # New Chat button
         if st.sidebar.button("New Chat", key="new_chat_button"):
-            # Save current session messages if any
             if (
                 st.session_state.get("current_session_id")
                 and st.session_state.get("messages")
