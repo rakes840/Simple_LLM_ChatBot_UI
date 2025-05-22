@@ -145,6 +145,7 @@ def chat_interface():
             st.experimental_rerun()
         # New Chat button
         if st.sidebar.button("New Chat", key="new_chat_button"):
+            # Save current session messages if any
             if (
                 st.session_state.get("current_session_id")
                 and st.session_state.get("messages")
@@ -171,6 +172,9 @@ def chat_interface():
             st.session_state.messages = []
             st.session_state.current_session_id = None
             st.session_state.current_session_name = None
+            # --- Reset the radio button selection ---
+            if "chat_sessions_radio" in st.session_state:
+                del st.session_state["chat_sessions_radio"]
             st.experimental_rerun()
 
         st.sidebar.markdown("---")
