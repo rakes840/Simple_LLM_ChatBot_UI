@@ -214,7 +214,7 @@ def chat_interface():
 
         # --- "Chat History" section is REMOVED as per your request ---
 
-        st.title("🤖 LangChain Hugging Face Chatbot")
+        st.title("ðŸ¤– LangChain Hugging Face Chatbot")
         st.markdown("---")
 
         try:
