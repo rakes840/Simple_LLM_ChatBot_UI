@@ -1,25 +1,24 @@
-import hashlib
+import logging
+import re
 import secrets
 import uuid
-import re
-import logging
 from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from db import User, get_db
+from config import JWT_SECRET_KEY, JWT_ALGORITHM
+from utils import create_jwt_token
+
+from passlib.context import CryptContext
 
 logger = logging.getLogger(__name__)
+
+# Use passlib for password hashing
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 def hash_password(password):
     """Hash a password for storing."""
     try:
-        salt = secrets.token_hex(16)
-        pwdhash = hashlib.pbkdf2_hmac(
-            'sha256',
-            password.encode(),
-            salt.encode(),
-            100000
-        ).hex()
-        return f"{salt}${pwdhash}"
+        return pwd_context.hash(password)
     except Exception as e:
         logger.error(f"Password hashing error: {str(e)}")
         raise Exception("Error securing password")
@@ -27,14 +26,7 @@ def hash_password(password):
 def verify_password(stored_password, provided_password):
     """Verify a stored password against a provided password."""
     try:
-        salt, stored_hash = stored_password.split('$')
-        pwdhash = hashlib.pbkdf2_hmac(
-            'sha256',
-            provided_password.encode(),
-            salt.encode(),
-            100000
-        ).hex()
-        return pwdhash == stored_hash
+        return pwd_context.verify(provided_password, stored_password)
     except Exception as e:
         logger.error(f"Password verification error: {str(e)}")
         return False
@@ -88,18 +80,22 @@ def create_user(username, email, password):
         if not username or not email or not password:
             logger.warning("Attempted to create user with missing fields")
             return None
+
         if not validate_email(email):
             logger.warning(f"Invalid email format: {email}")
             return None
+
         with get_db() as db:
             existing_username = db.query(User).filter(User.username == username).first()
             if existing_username:
                 logger.info(f"Registration attempt with existing username: {username}")
                 return None
+
             existing_email = db.query(User).filter(User.email == email).first()
             if existing_email:
                 logger.info(f"Registration attempt with existing email: {email}")
                 return None
+
             hashed_password = hash_password(password)
             user = User(username=username, email=email, hashed_password=hashed_password)
             db.add(user)
@@ -123,23 +119,31 @@ def authenticate_user(username, password):
     try:
         if not username or not password:
             return None
+
         with get_db() as db:
             user = db.query(User).filter(User.username == username).first()
             if not user:
                 logger.info(f"Authentication attempt for non-existent user: {username}")
                 return None
+
             if not verify_password(user.hashed_password, password):
                 logger.info(f"Failed authentication for user: {username}")
                 return None
+
             user.last_login = datetime.utcnow()
             user.login_count += 1
             db.commit()
+
+            # Generate JWT token
+            jwt_token = create_jwt_token(user.id, user.username, user.email)
+
             user_data = {
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
                 'last_login': user.last_login,
-                'login_count': user.login_count
+                'login_count': user.login_count,
+                'jwt_token': jwt_token,  # Include JWT token
             }
             logger.info(f"Successful authentication for user: {username}")
             return user_data
