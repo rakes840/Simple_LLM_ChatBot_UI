@@ -14,7 +14,7 @@
 
 /* Light background for main chat page */
 [data-testid="stAppViewContainer"] {
-  background-color: #ffffff;
+  background-color: #f7faff;
   padding: 20px;
 }
 
@@ -23,6 +23,16 @@
   background-color: #f0f2f6;
   padding: 15px;
   border-radius: 8px;
+}
+
+/* Sidebar profile image */
+.stSidebar .stImage {
+  border-radius: 50%;
+  margin-bottom: 0.5em;
+  border: 2px solid #e0e0e0;
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
 }
 
 /* Position logout button above welcome text in sidebar */
@@ -81,14 +91,55 @@ div[data-testid="stChatMessage"] {
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-/* User message styling */
+/* User message bubble (right-aligned) */
 div[data-testid="stChatMessage"][data-testid-role="user"] {
   background-color: #d1e7dd;
-  text-align: left;
+  text-align: right;
+  margin-left: 80px;
+  margin-right: 0;
+  border-radius: 18px 18px 4px 18px;
 }
 
-/* Assistant message styling */
+/* Assistant message bubble (left-aligned) */
 div[data-testid="stChatMessage"][data-testid-role="assistant"] {
   background-color: #f8d7da;
   text-align: left;
+  margin-right: 80px;
+  margin-left: 0;
+  border-radius: 18px 18px 18px 4px;
+}
+
+/* Timestamps */
+.stCaption {
+  color: #888;
+  font-size: 0.92em;
+  margin-top: -0.7em;
+  margin-bottom: 0.5em;
+}
+
+/* Copy button for assistant responses */
+.copy-clipboard-button {
+  background: #ececec;
+  color: #333;
+  border-radius: 6px;
+  border: none;
+  padding: 3px 10px;
+  margin-left: 10px;
+  cursor: pointer;
+  font-size: 0.95em;
+  transition: background 0.2s;
+}
+.copy-clipboard-button:hover {
+  background: #d1e7dd;
+}
+
+/* Responsive tweaks */
+@media (max-width: 800px) {
+  [data-testid="stAppViewContainer"] > .main,
+  div[data-testid="stChatMessage"],
+  div[data-testid="stChatInput"] {
+    max-width: 98vw !important;
+    margin-left: 1vw !important;
+    margin-right: 1vw !important;
+  }
 }
