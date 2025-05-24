@@ -34,7 +34,6 @@ Current conversation:
 Human: {input}
 AI:"""
         )
-        # Dict to hold memory per user_id/session_id
         self.user_memories: Dict[str, ConversationBufferMemory] = {}
 
     def get_memory(self, user_id: str, session_id: Optional[str] = None):
@@ -63,7 +62,6 @@ AI:"""
             return "Sorry, I couldn't process your request at this time."
 
 def get_chatbot():
-    # Singleton pattern if you want to share across app
     if not hasattr(get_chatbot, "_instance"):
         get_chatbot._instance = Chatbot()
     return get_chatbot._instance
