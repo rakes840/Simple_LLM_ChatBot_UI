@@ -1,7 +1,23 @@
-Login error: (sqlite3.OperationalError) no such column: users.profile_updated_at
-[SQL: SELECT users.id AS users_id, users.username AS users_username, users.email AS users_email, users.hashed_password AS users_hashed_password, users.last_login AS users_last_login, users.profile_updated_at AS users_profile_updated_at
-FROM users
-WHERE users.username = ?
- LIMIT ? OFFSET ?]
-[parameters: ('Rakesh', 1, 0)]
-(Background on this error at: https://sqlalche.me/e/20/e3q8)
+import sqlite3
+
+def add_profile_updated_at_column(db_path='test.db'):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Check if the column already exists
+    cursor.execute("PRAGMA table_info(users);")
+    columns = [info[1] for info in cursor.fetchall()]
+    if 'profile_updated_at' in columns:
+        print("Column 'profile_updated_at' already exists.")
+    else:
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN profile_updated_at DATETIME;")
+            conn.commit()
+            print("Column 'profile_updated_at' added successfully.")
+        except sqlite3.OperationalError as e:
+            print(f"Error adding column: {e}")
+
+    conn.close()
+
+if __name__ == "__main__":
+    add_profile_updated_at_column()
