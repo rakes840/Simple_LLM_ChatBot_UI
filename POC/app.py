@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from db import create_tables, get_db, ChatHistory, ChatSession
-from auth import create_user, authenticate_user, validate_password_strength
+from auth import create_user, authenticate_user, validate_password_strength, update_user_profile
 from chatbot import get_chatbot
 from utils import (
     get_user_chat_history,
@@ -17,15 +17,19 @@ from utils import (
     get_session_chat_history,
     format_chat_sessions,
     get_user_chat_sessions,
-    sanitize_input
+    sanitize_input,
+    update_feedback,
+    process_uploaded_file
 )
 from config import APP_TITLE, PAGE_ICON, LAYOUT, LOG_LEVEL, LOG_FORMAT, LOG_FILE
+
+from streamlit_extras.copy_to_clipboard import copy_to_clipboard
 
 # Set up logging
 setup_logging(LOG_LEVEL, LOG_FORMAT, LOG_FILE)
 logger = logging.getLogger(__name__)
 
-# Create necessary directories
+# Create necessary directories and tables
 try:
     os.makedirs("db", exist_ok=True)
     os.makedirs("styles", exist_ok=True)
@@ -36,16 +40,12 @@ except Exception as e:
     logger.critical(f"Failed to initialize application: {str(e)}")
     st.error("Failed to initialize application. Please check the logs or contact an administrator.")
 
-# Thread pool for background tasks
 executor = ThreadPoolExecutor(max_workers=10)
 
-# Page configuration
 st.set_page_config(page_title=APP_TITLE, page_icon=PAGE_ICON, layout=LAYOUT)
 
-# Initialize session state
 initialize_session_state()
 
-# Custom CSS
 def load_css():
     try:
         css_path = "styles/main.css"
@@ -59,7 +59,6 @@ def load_css():
 
 load_css()
 
-# Login Form
 def login_form():
     st.title("Welcome to LangChain Hugging Face Chatbot")
     tab1, tab2 = st.tabs(["Login", "Register"])
@@ -135,38 +134,24 @@ def login_form():
                 logger.error(f"Registration error: {str(e)}")
                 st.error("An error occurred during registration. Please try again later.")
 
-# Function to get chatbot response synchronously (for thread pool)
-def get_response_sync(chatbot, user_input, user_id, session_id):
-    try:
-        response = chatbot.get_response(user_input, user_id, session_id)
-        return response
-    except Exception as e:
-        logger.error(f"Error getting chatbot response: {str(e)}\n{traceback.format_exc()}")
-        return f"I'm sorry, I encountered an error while processing your request. Please try again later. Error: {str(e)}"
-
-# Chat Interface
 def chat_interface():
-    try:
-        st.sidebar.title(f"Welcome, {st.session_state.username}!")
+    chatbot = get_chatbot()
 
-        # Reset Conversation Button (per user/session)
-        chatbot = get_chatbot()
-        if st.sidebar.button("Reset Conversation"):
+    with st.sidebar:
+        st.subheader("Profile")
+        st.write(f"**Username:** {st.session_state.username}")
+        st.write(f"**Email:** {st.session_state.email}")
+        if st.button("Edit Profile"):
+            show_profile_editor()
+
+        if st.button("Reset Conversation"):
             chatbot.reset_memory(str(st.session_state.user_id), str(st.session_state.current_session_id))
             st.session_state.messages = []
             st.success("Conversation reset!")
 
-        if st.sidebar.button("Logout", key="logout_button"):
-            st.session_state.clear()
-            st.rerun()
-
-        if st.sidebar.button("New Chat", key="new_chat_button"):
+        if st.button("New Chat"):
             # Save current session messages if any
-            if (
-                st.session_state.get("current_session_id")
-                and st.session_state.get("messages")
-                and len(st.session_state.messages) > 0
-            ):
+            if st.session_state.current_session_id and st.session_state.messages:
                 try:
                     with get_db() as db:
                         msgs = st.session_state.messages
@@ -186,106 +171,144 @@ def chat_interface():
             st.session_state.messages = []
             st.session_state.current_session_id = None
             st.session_state.current_session_name = None
-            st.rerun()
+            st.experimental_rerun()
 
-        st.sidebar.markdown("---")
-        st.sidebar.header("Past Conversations")
+        if st.button("Logout"):
+            st.session_state.clear()
+            st.experimental_rerun()
+
+        st.markdown("---")
+        st.header("Past Conversations")
         try:
             sessions = get_user_chat_sessions(st.session_state.user_id)
             if sessions:
                 formatted_sessions = format_chat_sessions(sessions)
-                selected_session_idx = st.sidebar.radio(
+                selected_session_idx = st.radio(
                     "Select a previous conversation:",
                     range(len(formatted_sessions)),
                     format_func=lambda i: formatted_sessions[i],
                     key="chat_sessions_radio",
                 )
-                if st.sidebar.button("Load Selected Chat"):
+                if st.button("Load Selected Chat"):
                     session = sessions[selected_session_idx]
-                    # Only load if not already loaded
-                    if st.session_state.get("current_session_id") != session.id:
+                    if st.session_state.current_session_id != session.id:
                         st.session_state.current_session_id = session.id
                         st.session_state.current_session_name = session.session_name
                         with st.spinner("Loading conversation..."):
-                            session_messages = get_session_chat_history(session.id)
-                            # --- Reset messages before appending ---
                             st.session_state.messages = []
+                            session_messages = get_session_chat_history(session.id)
                             for message in session_messages:
-                                st.session_state.messages.append({"role": "user", "content": message.user_message})
-                                st.session_state.messages.append({"role": "assistant", "content": message.bot_response})
-                        # Also reset memory for this session
+                                st.session_state.messages.append({
+                                    "role": "user",
+                                    "content": message.user_message,
+                                    "timestamp": message.timestamp
+                                })
+                                st.session_state.messages.append({
+                                    "role": "assistant",
+                                    "content": message.bot_response,
+                                    "timestamp": message.timestamp
+                                })
                         chatbot.reset_memory(str(st.session_state.user_id), str(session.id))
-                        st.rerun()
+                        st.experimental_rerun()
             else:
-                st.sidebar.info("No past conversations available.")
+                st.info("No past conversations available.")
         except Exception as e:
             logger.error(f"Error loading chat sessions: {str(e)}")
-            st.sidebar.error("Failed to load chat sessions.")
+            st.error("Failed to load chat sessions.")
 
-        st.sidebar.markdown("---")
-        st.title("🤖 LangChain Hugging Face Chatbot")
-        st.markdown("---")
+    st.title("🤖 LangChain Hugging Face Chatbot")
+    st.markdown("---")
 
-        # Display chat messages
-        for message in st.session_state.get("messages", []):
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
+    # Display chat messages with timestamps and copy button
+    for message in st.session_state.get("messages", []):
+        with st.chat_message(message["role"]):
+            st.markdown(format_message_with_timestamp(message), unsafe_allow_html=True)
+            if message["role"] == "assistant":
+                copy_to_clipboard(message["content"], "📋 Copy Response", key=f"copy_{message.get('timestamp', '')}")
 
-        user_input = st.chat_input("Type your message here...")
+    # File uploader
+    uploaded_file = st.file_uploader("Upload file", type=["txt", "pdf", "docx"], label_visibility="visible")
+    user_input = st.chat_input("Type your message here...")
 
-        if user_input:
-            user_input = sanitize_input(user_input)
-            # Append user message
-            st.session_state.messages.append({"role": "user", "content": user_input})
-            with st.chat_message("user"):
-                st.write(user_input)
+    if uploaded_file:
+        file_content = process_uploaded_file(uploaded_file)
+        user_input = f"[File: {uploaded_file.name}] {file_content}"
 
-            with st.spinner("Thinking..."):
-                try:
-                    if st.session_state.current_session_id is None:
-                        with get_db() as db:
-                            new_session = ChatSession(
-                                user_id=st.session_state.user_id,
-                                session_name=user_input,
-                            )
-                            db.add(new_session)
-                            db.commit()
-                            db.refresh(new_session)
-                            st.session_state.current_session_id = new_session.id
-                            st.session_state.current_session_name = user_input
+    if user_input:
+        user_input = sanitize_input(user_input)
+        st.session_state.messages.append({"role": "user", "content": user_input, "timestamp": datetime.utcnow()})
+        with st.chat_message("user"):
+            st.write(user_input)
 
-                    # Get response (per-user, per-session memory)
-                    future = executor.submit(
-                        get_response_sync,
-                        chatbot,
-                        user_input,
-                        str(st.session_state.user_id),
-                        str(st.session_state.current_session_id),
-                    )
-                    bot_response = future.result(timeout=60)
-                    bot_response = sanitize_input(bot_response)
-                    # Append assistant message
-                    st.session_state.messages.append({"role": "assistant", "content": bot_response})
-                    with st.chat_message("assistant"):
-                        st.write(bot_response)
-
-                    # Save to DB
+        with st.spinner("Thinking..."):
+            try:
+                if st.session_state.current_session_id is None:
                     with get_db() as db:
-                        chat_entry = ChatHistory(
-                            session_id=st.session_state.current_session_id,
-                            user_message=user_input,
-                            bot_response=bot_response,
-                            timestamp=datetime.utcnow(),
+                        new_session = ChatSession(
+                            user_id=st.session_state.user_id,
+                            session_name=user_input,
                         )
-                        db.add(chat_entry)
+                        db.add(new_session)
                         db.commit()
-                except Exception as e:
-                    logger.error(f"Error in chat processing: {str(e)}")
-                    st.error("An error occurred while processing your message.")
+                        db.refresh(new_session)
+                        st.session_state.current_session_id = new_session.id
+                        st.session_state.current_session_name = user_input
 
-    except Exception as e:
-        logger.error(f"Chat interface error: {str(e)}\n{traceback.format_exc()}")
-        st.error("An unexpected error occurred. Please refresh the page.")
+                future = executor.submit(
+                    chatbot.get_response,
+                    user_input,
+                    str(st.session_state.user_id),
+                    str(st.session_state.current_session_id),
+                )
+                bot_response = future.result(timeout=60)
+                bot_response = sanitize_input(bot_response)
+                st.session_state.messages.append({"role": "assistant", "content": bot_response, "timestamp": datetime.utcnow()})
+
+                with st.chat_message("assistant"):
+                    st.write(bot_response)
+                    copy_to_clipboard(bot_response, "📋 Copy Response", key=f"copy_{datetime.utcnow()}")
+
+                # Save chat history
+                with get_db() as db:
+                    chat_entry = ChatHistory(
+                        session_id=st.session_state.current_session_id,
+                        user_message=user_input,
+                        bot_response=bot_response,
+                        timestamp=datetime.utcnow(),
+                    )
+                    db.add(chat_entry)
+                    db.commit()
+            except Exception as e:
+                logger.error(f"Error in chat processing: {str(e)}")
+                st.error("An error occurred while processing your message.")
+
+def show_profile_editor():
+    with st.form("profile_form"):
+        new_username = st.text_input("Username", st.session_state.username)
+        new_email = st.text_input("Email", st.session_state.email)
+        submitted = st.form_submit_button("Update Profile")
+        if submitted:
+            success = update_user_profile(st.session_state.user_id, new_username, new_email)
+            if success:
+                st.success("Profile updated successfully!")
+                st.session_state.username = new_username
+                st.session_state.email = new_email
+            else:
+                st.error("Failed to update profile. Please try again.")
+
+def format_message_with_timestamp(message):
+    timestamp = message.get('timestamp', datetime.utcnow())
+    if isinstance(timestamp, str):
+        timestamp_str = timestamp
+    else:
+        timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M")
+    background = "#e3f2fd" if message['role'] == 'user' else "#f5f5f5"
+    return f"""
+    <div style='margin: 0.5rem 0; padding: 0.5rem; border-radius: 0.5rem; background: {background}'>
+        <div>{message['content']}</div>
+        <div style='font-size: 0.8rem; color: #666; margin-top: 0.3rem'>{timestamp_str}</div>
+    </div>
+    """
 
 def main():
     if not st.session_state.authenticated:
