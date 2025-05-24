@@ -184,41 +184,4 @@ def create_session_token():
 
 
 
-def format_chat_history(messages, include_timestamps=False):
-    """
-    Format chat history as a readable string for display or prompt context.
-
-    Args:
-        messages (list): List of dicts or ORM objects with 'role', 'content', and optionally 'timestamp'.
-        include_timestamps (bool): If True, include timestamps in the formatted output.
-
-    Returns:
-        str: Formatted chat history.
-    """
-    lines = []
-    for msg in messages:
-        # Support both dict (from session_state) and ORM object (from DB)
-        role = getattr(msg, "role", None) or msg.get("role", "")
-        content = getattr(msg, "content", None) or getattr(msg, "user_message", None) or msg.get("content", "") or msg.get("user_message", "")
-        # For DB objects, assistant response may be in 'bot_response'
-        if not content and hasattr(msg, "bot_response"):
-            content = msg.bot_response
-        timestamp = getattr(msg, "timestamp", None) or msg.get("timestamp", None)
-        if role == "user":
-            prefix = "Human"
-        elif role == "assistant":
-            prefix = "AI"
-        else:
-            prefix = role.capitalize() if role else "Message"
-        if include_timestamps and timestamp:
-            if isinstance(timestamp, str):
-                ts = timestamp
-            else:
-                ts = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-            lines.append(f"{prefix} [{ts}]: {content}")
-        else:
-            lines.append(f"{prefix}: {content}")
-    return "\n".join(lines)
-
-
 
