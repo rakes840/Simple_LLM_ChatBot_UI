@@ -2,7 +2,6 @@ import streamlit as st
 import os
 import time
 import logging
-import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
@@ -10,52 +9,38 @@ from db import create_tables, get_db, ChatHistory, ChatSession
 from auth import create_user, authenticate_user, validate_password_strength, update_user_profile
 from chatbot import get_chatbot
 from utils import (
-    get_user_chat_history,
-    format_chat_history,
-    initialize_session_state,
-    setup_logging,
+    get_user_chat_sessions,
     get_session_chat_history,
     format_chat_sessions,
-    get_user_chat_sessions,
     sanitize_input,
-    update_feedback,
-    process_uploaded_file
+    process_uploaded_file,
+    initialize_session_state,
+    update_feedback
 )
-from config import APP_TITLE, PAGE_ICON, LAYOUT, LOG_LEVEL, LOG_FORMAT, LOG_FILE
-
+from config import APP_TITLE, PAGE_ICON, LAYOUT
 from streamlit_extras.copy_to_clipboard import copy_to_clipboard
 
-# Set up logging
-setup_logging(LOG_LEVEL, LOG_FORMAT, LOG_FILE)
+# Setup logging
 logger = logging.getLogger(__name__)
 
-# Create necessary directories and tables
-try:
-    os.makedirs("db", exist_ok=True)
-    os.makedirs("styles", exist_ok=True)
-    os.makedirs("logs", exist_ok=True)
-    create_tables()
-    logger.info("Application initialized successfully")
-except Exception as e:
-    logger.critical(f"Failed to initialize application: {str(e)}")
-    st.error("Failed to initialize application. Please check the logs or contact an administrator.")
+# Initialize app
+os.makedirs("db", exist_ok=True)
+os.makedirs("styles", exist_ok=True)
+os.makedirs("logs", exist_ok=True)
+create_tables()
+
+st.set_page_config(page_title=APP_TITLE, page_icon=PAGE_ICON, layout=LAYOUT)
+initialize_session_state()
 
 executor = ThreadPoolExecutor(max_workers=10)
 
-st.set_page_config(page_title=APP_TITLE, page_icon=PAGE_ICON, layout=LAYOUT)
-
-initialize_session_state()
-
 def load_css():
-    try:
-        css_path = "styles/main.css"
-        if os.path.exists(css_path):
-            with open(css_path, "r") as f:
-                st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-        else:
-            logger.warning("CSS file not found. UI styling might be affected.")
-    except Exception as e:
-        logger.error(f"Failed to load CSS: {str(e)}")
+    css_path = "styles/main.css"
+    if os.path.exists(css_path):
+        with open(css_path, "r") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        logger.warning("CSS file not found.")
 
 load_css()
 
@@ -69,34 +54,21 @@ def login_form():
         password = st.text_input("Password", type="password", key="login_password")
 
         if st.button("Login", key="login_button"):
+            if not username or not password:
+                st.warning("Please enter both username and password.")
+                return
             try:
-                if not username or not password:
-                    st.warning("Please enter both username and password.")
-                    return
-
-                with st.spinner("Authenticating..."):
-                    user = authenticate_user(username, password)
-                    if user:
-                        logger.info(f"User '{user['username']}' logged in successfully")
-                        st.session_state.user_id = user["id"]
-                        st.session_state.username = user["username"]
-                        st.session_state.email = user.get("email", "")
-                        st.session_state.last_login = user.get("last_login", "")
-                        st.session_state.authenticated = True
-                        st.session_state.login_attempts = 0
-                        st.success(f"Welcome back, {user['username']}!")
-                        time.sleep(1)
-                        st.rerun()
-                    else:
-                        st.session_state.login_attempts = st.session_state.get("login_attempts", 0) + 1
-                        logger.warning(
-                            f"Failed login attempt for username '{username}' (Attempt #{st.session_state.login_attempts})"
-                        )
-                        if st.session_state.login_attempts >= 5:
-                            st.error("Too many failed login attempts. Please try again later.")
-                            time.sleep(3)
-                        else:
-                            st.error("Invalid username or password.")
+                user = authenticate_user(username, password)
+                if user:
+                    st.session_state.user_id = user["id"]
+                    st.session_state.username = user["username"]
+                    st.session_state.email = user.get("email", "")
+                    st.session_state.authenticated = True
+                    st.success(f"Welcome back, {user['username']}!")
+                    time.sleep(1)
+                    st.experimental_rerun()
+                else:
+                    st.error("Invalid username or password.")
             except Exception as e:
                 logger.error(f"Login error: {str(e)}")
                 st.error("An error occurred during login. Please try again later.")
@@ -109,30 +81,53 @@ def login_form():
         confirm_password = st.text_input("Confirm Password", type="password", key="confirm_password")
 
         if st.button("Register", key="register_button"):
+            if not new_username or not new_email or not new_password:
+                st.warning("Please fill in all fields.")
+                return
+            if new_password != confirm_password:
+                st.error("Passwords do not match.")
+                return
+            password_validation = validate_password_strength(new_password)
+            if not password_validation["valid"]:
+                st.error(password_validation["message"])
+                return
             try:
-                if not new_username or not new_email or not new_password:
-                    st.warning("Please fill in all fields.")
-                    return
-
-                if new_password != confirm_password:
-                    st.error("Passwords do not match.")
-                    return
-
-                password_validation = validate_password_strength(new_password)
-                if not password_validation["valid"]:
-                    st.error(password_validation["message"])
-                    return
-
-                with st.spinner("Creating account..."):
-                    user = create_user(new_username, new_email, new_password)
-                    if user:
-                        logger.info(f"New user registered: {new_username}")
-                        st.success("Registration successful! Please log in.")
-                    else:
-                        st.error("Username or email already exists or invalid. Please choose another one.")
+                user = create_user(new_username, new_email, new_password)
+                if user:
+                    st.success("Registration successful! Please log in.")
+                else:
+                    st.error("Username or email already exists or invalid.")
             except Exception as e:
                 logger.error(f"Registration error: {str(e)}")
                 st.error("An error occurred during registration. Please try again later.")
+
+def show_profile_editor():
+    with st.form("profile_form"):
+        new_username = st.text_input("Username", st.session_state.username)
+        new_email = st.text_input("Email", st.session_state.email)
+        submitted = st.form_submit_button("Update Profile")
+        if submitted:
+            success = update_user_profile(st.session_state.user_id, new_username, new_email)
+            if success:
+                st.success("Profile updated successfully!")
+                st.session_state.username = new_username
+                st.session_state.email = new_email
+            else:
+                st.error("Failed to update profile. Please try again.")
+
+def format_message_with_timestamp(message):
+    timestamp = message.get('timestamp', datetime.utcnow())
+    if isinstance(timestamp, str):
+        timestamp_str = timestamp
+    else:
+        timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M")
+    background = "#e3f2fd" if message['role'] == 'user' else "#f5f5f5"
+    return f"""
+    <div style='margin: 0.5rem 0; padding: 0.5rem; border-radius: 0.5rem; background: {background}'>
+        <div>{message['content']}</div>
+        <div style='font-size: 0.8rem; color: #666; margin-top: 0.3rem'>{timestamp_str}</div>
+    </div>
+    """
 
 def chat_interface():
     chatbot = get_chatbot()
@@ -150,24 +145,6 @@ def chat_interface():
             st.success("Conversation reset!")
 
         if st.button("New Chat"):
-            # Save current session messages if any
-            if st.session_state.current_session_id and st.session_state.messages:
-                try:
-                    with get_db() as db:
-                        msgs = st.session_state.messages
-                        for i in range(0, len(msgs), 2):
-                            user_msg = msgs[i]["content"]
-                            bot_msg = msgs[i + 1]["content"] if i + 1 < len(msgs) else ""
-                            chat_entry = ChatHistory(
-                                session_id=st.session_state.current_session_id,
-                                user_message=user_msg,
-                                bot_response=bot_msg,
-                                timestamp=datetime.utcnow(),
-                            )
-                            db.add(chat_entry)
-                        db.commit()
-                except Exception as e:
-                    logger.error(f"Error saving chat history on New Chat: {str(e)}")
             st.session_state.messages = []
             st.session_state.current_session_id = None
             st.session_state.current_session_name = None
@@ -196,6 +173,8 @@ def chat_interface():
                         st.session_state.current_session_name = session.session_name
                         with st.spinner("Loading conversation..."):
                             st.session_state.messages = []
+                            chatbot.reset_memory(str(st.session_state.user_id), str(session.id))
+                            chatbot.load_conversation_history(st.session_state.user_id, session.id)
                             session_messages = get_session_chat_history(session.id)
                             for message in session_messages:
                                 st.session_state.messages.append({
@@ -208,7 +187,6 @@ def chat_interface():
                                     "content": message.bot_response,
                                     "timestamp": message.timestamp
                                 })
-                        chatbot.reset_memory(str(st.session_state.user_id), str(session.id))
                         st.experimental_rerun()
             else:
                 st.info("No past conversations available.")
@@ -254,13 +232,11 @@ def chat_interface():
                         st.session_state.current_session_id = new_session.id
                         st.session_state.current_session_name = user_input
 
-                future = executor.submit(
-                    chatbot.get_response,
+                bot_response = chatbot.get_response(
                     user_input,
                     str(st.session_state.user_id),
-                    str(st.session_state.current_session_id),
+                    str(st.session_state.current_session_id)
                 )
-                bot_response = future.result(timeout=60)
                 bot_response = sanitize_input(bot_response)
                 st.session_state.messages.append({"role": "assistant", "content": bot_response, "timestamp": datetime.utcnow()})
 
@@ -272,43 +248,16 @@ def chat_interface():
                 with get_db() as db:
                     chat_entry = ChatHistory(
                         session_id=st.session_state.current_session_id,
+                        user_id=st.session_state.user_id,
                         user_message=user_input,
                         bot_response=bot_response,
-                        timestamp=datetime.utcnow(),
+                        timestamp=datetime.utcnow()
                     )
                     db.add(chat_entry)
                     db.commit()
             except Exception as e:
                 logger.error(f"Error in chat processing: {str(e)}")
                 st.error("An error occurred while processing your message.")
-
-def show_profile_editor():
-    with st.form("profile_form"):
-        new_username = st.text_input("Username", st.session_state.username)
-        new_email = st.text_input("Email", st.session_state.email)
-        submitted = st.form_submit_button("Update Profile")
-        if submitted:
-            success = update_user_profile(st.session_state.user_id, new_username, new_email)
-            if success:
-                st.success("Profile updated successfully!")
-                st.session_state.username = new_username
-                st.session_state.email = new_email
-            else:
-                st.error("Failed to update profile. Please try again.")
-
-def format_message_with_timestamp(message):
-    timestamp = message.get('timestamp', datetime.utcnow())
-    if isinstance(timestamp, str):
-        timestamp_str = timestamp
-    else:
-        timestamp_str = timestamp.strftime("%Y-%m-%d %H:%M")
-    background = "#e3f2fd" if message['role'] == 'user' else "#f5f5f5"
-    return f"""
-    <div style='margin: 0.5rem 0; padding: 0.5rem; border-radius: 0.5rem; background: {background}'>
-        <div>{message['content']}</div>
-        <div style='font-size: 0.8rem; color: #666; margin-top: 0.3rem'>{timestamp_str}</div>
-    </div>
-    """
 
 def main():
     if not st.session_state.authenticated:
