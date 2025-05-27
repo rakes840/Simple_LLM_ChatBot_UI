@@ -4,7 +4,6 @@ from exception import InvalidCredentialsError, UserExistsError
 from logger import get_logger
 
 logger = get_logger()
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain_password, hashed_password):
@@ -54,7 +53,7 @@ def update_user_profile(user_id, username, email):
                 user.email = email
                 db.commit()
                 return True
-            return False
+        return False
     except Exception as e:
         logger.error(f"Profile update error: {str(e)}")
         return False
