@@ -15,10 +15,6 @@ from dotenv import load_dotenv
 load_dotenv()
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = os.getenv('HF_TOKEN_new')
 
-print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-print(os.getenv('HF_TOKEN_new'))
-print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
-
 logger = logging.getLogger(__name__)
 
 class Chatbot:
@@ -35,7 +31,6 @@ class Chatbot:
             )
             self.chat_model = ChatHuggingFace(llm=self.llm)
             template = """The following is a friendly conversation between a human and an AI assistant.
-
 Current conversation:
 {history}
 Human: {input}
@@ -44,7 +39,6 @@ AI:"""
                 input_variables=["history", "input"],
                 template=template
             )
-            # Store per user:session memory
             self.user_session_memories: Dict[str, ConversationBufferMemory] = {}
             logger.info(f"Chatbot initialized with model: {model_name}")
         except Exception as e:
@@ -110,15 +104,12 @@ AI:"""
                 if session_id:
                     query = query.filter(ChatHistory.session_id == session_id)
                 history = query.order_by(ChatHistory.timestamp).all()
-
-            memory = self.get_memory(user_id, session_id)
-            memory.clear()
-
-            for chat in history:
-                memory.save_context({"input": chat.user_message}, {"output": chat.bot_response})
-
-            logger.info(f"Loaded {len(history)} conversation records for user {user_id}, session {session_id}")
-            return True
+                memory = self.get_memory(user_id, session_id)
+                memory.clear()
+                for chat in history:
+                    memory.save_context({"input": chat.user_message}, {"output": chat.bot_response})
+                logger.info(f"Loaded {len(history)} conversation records for user {user_id}, session {session_id}")
+                return True
         except Exception as e:
             logger.error(f"Error loading conversation history: {str(e)}")
             return False
