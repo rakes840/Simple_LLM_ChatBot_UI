@@ -1,3 +1,6 @@
+/* ===========================
+   Your Existing Styles
+   =========================== */
 body, [data-testid="stAppViewContainer"] {
  background: #f7faff !important;
  font-family: 'Segoe UI', 'Arial', sans-serif;
@@ -219,3 +222,109 @@ body, [data-testid="stAppViewContainer"] {
  background: #e0e7ef;
  border-radius: 4px;
 }
+
+/* ===========================
+   Latest UI Fixes & Additions
+   =========================== */
+
+/* --- Input bar and file uploader alignment fix --- */
+.input-bar-container, .input-row {
+    /* Already handled above, but ensure alignment */
+    align-items: center;
+}
+.input-row .stTextInput > div {
+    display: flex;
+    align-items: center;
+}
+
+/* --- Likes/dislikes button size improvement --- */
+.like-button, .dislike-button,
+.action-btn-group .like-button, .action-btn-group .dislike-button {
+    font-size: 13px !important;
+    padding: 4px 8px !important;
+    margin-left: 5px !important;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    color: #666;
+    transition: background 0.2s;
+}
+.like-button:hover, .dislike-button:hover,
+.action-btn-group .like-button:hover, .action-btn-group .dislike-button:hover {
+    background: #e0e7ef;
+    color: #333;
+}
+
+/* --- Copy button at top-right inside response --- */
+.copy-button {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-size: 1.15rem;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    z-index: 2;
+}
+.copy-button:hover {
+    background: #e0e7ef;
+    color: #333;
+}
+
+/* --- Chat message container for relative positioning --- */
+.stChatMessage .chat-bubble {
+    position: relative;
+    /* already set above, but ensure for copy button */
+    padding-top: 2.2rem; /* Make room for action buttons */
+}
+
+/* --- Fix input bar container to prevent jumping (optional, if you want fixed at bottom) --- */
+/* 
+.input-bar-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100vw;
+    background-color: #fff;
+    z-index: 200;
+    box-shadow: 0 -1px 5px rgba(0,0,0,0.08);
+    padding: 1rem 0.5rem;
+}
+*/
+
+/* --- File uploader and input bar horizontal alignment (if using columns) --- */
+.stTextInput > div, .stFileUploader > div {
+    display: flex;
+    align-items: center;
+}
+
+/* --- Responsive tweaks for action buttons --- */
+@media (max-width: 600px) {
+    .action-btn-group {
+        top: 0.2rem;
+        right: 0.3rem;
+        gap: 0.08rem;
+    }
+    .copy-button {
+        top: 4px;
+        right: 6px;
+    }
+}
+
+/* ===========================
+   End of Integration
+   =========================== */
