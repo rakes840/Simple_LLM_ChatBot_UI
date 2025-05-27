@@ -40,7 +40,6 @@ AI:"""
                 input_variables=["history", "input"],
                 template=template
             )
-            # Store per user:session memory
             self.user_session_memories: Dict[str, ConversationBufferMemory] = {}
             logger.info(f"Chatbot initialized with model: {model_name}")
         except Exception as e:
