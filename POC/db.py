@@ -19,7 +19,6 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     last_login = Column(DateTime(timezone=True), nullable=True)
     profile_updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
     sessions = relationship("ChatSession", back_populates="user")
 
 class ChatSession(Base):
@@ -28,7 +27,6 @@ class ChatSession(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     session_name = Column(String(255))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
     user = relationship("User", back_populates="sessions")
     chats = relationship("ChatHistory", back_populates="session")
 
@@ -36,12 +34,13 @@ class ChatHistory(Base):
     __tablename__ = "chat_history"
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey("chat_sessions.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
     user_message = Column(String)
     bot_response = Column(String)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    feedback = Column(String(20), nullable=True)  # like/dislike/None
-
+    feedback = Column(String(20), nullable=True)
     session = relationship("ChatSession", back_populates="chats")
+    user = relationship("User")
 
 @contextmanager
 def get_db():
