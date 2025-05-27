@@ -177,8 +177,8 @@ def show_profile_modal():
                 <div class="profile-info">
             """, unsafe_allow_html=True)
             
-            st.write(f"**Username:** {st.session_state.username}")
-            st.write(f"**Email:** {st.session_state.email}")
+            st.write(f"**USER NAME:** {st.session_state.username}")
+            st.write(f"**EMAIL:** {st.session_state.email}")
             
             col1, col2 = st.columns(2)
             with col1:
@@ -239,11 +239,10 @@ def render_chat_message(message, idx):
         <div class="chat-timestamp">{timestamp_str}</div>
         {'' if is_user else f'''
         <div class="message-actions">
-            <button class="action-btn" onclick="navigator.clipboard.writeText('{message['content'].replace("'", "\\'")}')">📋</button>
+            <button class="action-btn" onclick="navigator.clipboard.writeText('{message['content'].replace("'", "//'")}')">📋</button>
         </div>
         '''}
-    </div>
-    """, unsafe_allow_html=True)
+    </div>""", unsafe_allow_html=True)
     
     # Add action buttons for assistant messages
     if not is_user:
@@ -320,12 +319,6 @@ def chat_interface():
     with st.sidebar:
         st.title(f"Welcome, {st.session_state.username}! 👋")
         
-        # Profile button - hide when profile is shown
-        if not st.session_state.get("show_profile", False) and not st.session_state.get("edit_profile", False):
-            if st.button("👤 Profile", key="profile_btn", use_container_width=True):
-                st.session_state.show_profile = True
-                st.rerun()
-        
         st.markdown("---")
         
         # Session management
@@ -346,8 +339,14 @@ def chat_interface():
                 st.session_state.clear()
                 st.rerun()
 
-    # Show profile modal
-    show_profile_modal()
+        # Profile button - hide when profile is shown
+        if not st.session_state.get("show_profile", False) and not st.session_state.get("edit_profile", False):
+            if st.button("👤 Profile", key="profile_btn", use_container_width=True):
+                st.session_state.show_profile = True
+                st.rerun()
+
+        # Show profile modal
+        show_profile_modal()
 
     # Main chat interface
     st.title("🤖 LangChain Hugging Face Chatbot")
