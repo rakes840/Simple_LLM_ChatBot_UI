@@ -89,3 +89,22 @@ def get_logger(name=None):
     if name:
         return logging.getLogger(name)
     return app_logger
+
+
+import logging
+from config import LOG_LEVEL, LOG_FORMAT, LOG_FILE
+
+def get_logger(name=__name__):
+    logger = logging.getLogger(name)
+    if not logger.handlers:
+        handler = logging.FileHandler(LOG_FILE)
+        formatter = logging.Formatter(LOG_FORMAT)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(LOG_LEVEL)
+        logger.propagate = False
+    return logger
+
+
+
+
